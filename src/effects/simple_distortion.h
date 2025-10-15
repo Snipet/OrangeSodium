@@ -1,6 +1,8 @@
 #pragma once
 #include "../effect.h"
 #include "../modulation_router.h"
+#include <map>
+#include <memory>
 
 namespace OrangeSodium {
 
@@ -14,7 +16,7 @@ public:
     void onModulationArchitectureChange(SignalBuffer<T>* mod_inputs) override;
 
 
-    static const std::map<std::string, size_t> param_map = {
+    inline static const std::map<std::string, size_t> param_map = {
         {"drive", 0},
         {"mix", 1},
         {"output_gain", 2}

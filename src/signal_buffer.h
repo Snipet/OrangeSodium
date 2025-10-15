@@ -1,6 +1,11 @@
 // Abstraction of audio and mod signals
 #pragma once
+#include <cstddef>
+
 namespace OrangeSodium{
+
+// Forward declaration for ObjectID type
+using ObjectID = unsigned int;
 
 template <typename T>
 class SignalBuffer{
@@ -9,7 +14,7 @@ public:
     enum class EType{
         kAudio = 0,
         kMod,
-    }
+    };
 
     SignalBuffer(EType type, size_t n_frames, size_t n_channels);
     ~SignalBuffer();
@@ -33,6 +38,7 @@ private:
     ObjectID* buffer_ids;     //IDs that point to the source of each channel (e.g. which oscillator, filter, effect, modulation producer, etc)
     size_t* channel_lengths;  // Length of each channel (in samples)
     size_t* channel_divisions; // For modulation buffers, this indicates how many samples to skip. For example, a division of 4 means the buffer is at 1/4 the sample rate of audio
+    size_t n_channels;        // Number of channels
     EType type;
 };
 

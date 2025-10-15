@@ -1,3 +1,9 @@
 [submodule "third_party/lua"]
 	path = third_party/lua
-	url = https://github.com/lua/lua.git
+	url = https://github.com/Snipet/lua.git
+[submodule "third_party/AudioFile"]
+	path = third_party/AudioFile
+	url = https://github.com/Snipet/AudioFile.git
+[submodule "third_party/json"]
+	path = third_party/json
+	url = https://github.com/Snipet/json.git

@@ -16,13 +16,13 @@ public:
 
 private:
     /// @brief Collection of all voice oscillators
-    std::vector<Oscillator> oscillators;
+    std::vector<Oscillator<T>*> oscillators;
 
     /// @brief Collection of all voice filters
-    std::vector<Filter> filters;
+    std::vector<Filter<T>*> filters;
 
     /// @brief Collection of interconnecting signal buffers
-    std::vector<SignalBuffer> buffers;
+    std::vector<SignalBuffer<T>*> buffers;
 
     Context* m_context;
 };

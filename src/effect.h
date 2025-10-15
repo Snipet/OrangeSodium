@@ -2,6 +2,7 @@
 
 #pragma once
 #include "context.h"
+#include "signal_buffer.h"
 
 namespace OrangeSodium{
 template <typename T>

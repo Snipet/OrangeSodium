@@ -13,8 +13,8 @@ OrangeSodium::SimpleDistortion<T>::SimpleDistortion(Context* context)
 }
 
 template <typename T>
-void SimpleDistortion<T>::onModulationArchitectureChange(){
-    
+void SimpleDistortion<T>::onModulationArchitectureChange(SignalBuffer<T>* mod_inputs){
+    // Update modulation router with new architecture
 }
 
 }
