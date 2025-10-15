@@ -15,7 +15,7 @@ public:
         kGlobal // Master filter (processing FX, etc)
     };
 
-    Filter(Context* context);
+    Filter(Context* context, ObjectID id, size_t n_channels);
     virtual ~Filter() = default;
 
     /// @brief Run the filter
@@ -34,15 +34,14 @@ public:
     void setSampleRate(T rate) { sample_rate = rate; onSampleRateChange(rate); }
     
     
-    T getCutoff() const { return cutoff; }
-    T getResonance() const { return resonance; }
+    T getCutoff() const { return param_cutoff; }
+    T getResonance() const { return param_resonance; }
 
 protected:
     Context* m_context; // Pointer to global context
     T sample_rate;
-    T cutoff;
-    T resonance;
-    std::string filter_name;
+    T param_cutoff;
+    T param_resonance;
     ObjectID id; // Unique ID for this filter instance (used for modulation routing, etc)
 };
 

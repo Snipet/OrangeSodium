@@ -5,13 +5,23 @@
 namespace OrangeSodium {
 
 template <typename T>
-Synthesizer<T>::Synthesizer(Context* context, size_t n_voices, float sample_rate) : m_context(context) {
+Synthesizer<T>::Synthesizer(Context* context, size_t n_voices, float sample_rate, size_t n_frames) : m_context(context) {
     voices.reserve(n_voices);
     m_context->n_voices = n_voices;
     m_context->sample_rate = sample_rate;
+    m_context->n_frames = n_frames;
+    master_output_buffer = nullptr;
 
     // Get or create singleton instance
     program = Program<T>::getInstance(m_context);
+    setMasterOutputBufferInfoCallback = [this](size_t n_channels) {
+        if (master_output_buffer) {
+            delete master_output_buffer;
+        }
+        master_output_buffer = new SignalBuffer<T>(SignalBuffer<T>::EType::kAudio, m_context->n_frames, n_channels);
+    };
+    program->setMasterOutputBufferInfoCallback(setMasterOutputBufferInfoCallback);
+    
 }
 
 template <typename T>

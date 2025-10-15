@@ -23,6 +23,12 @@ public:
     
     ObjectID addSineOscillator(size_t n_channels); // Add a sine wave oscillator to the voice; returns its ObjectID
     EObjectType getObjectType(ObjectID id); // Get the type of object with the given ID; returns kOscillator, kFilter, etc. Returns kUndefined if not found (default)
+    void setMasterAudioBufferInfo(size_t n_channels) {
+        if (voice_master_audio_buffer) {
+            delete voice_master_audio_buffer;
+        }
+        voice_master_audio_buffer = new SignalBuffer<T>(SignalBuffer<T>::EType::kAudio, m_context->n_frames, n_channels);
+    }
 
 private:
     /// @brief Collection of all voice oscillators
@@ -36,6 +42,9 @@ private:
     /// @brief Collection of interconnecting signal buffers
     std::vector<SignalBuffer<T>*> audio_buffers;
     std::vector<SignalBuffer<T>*> mod_buffers;
+
+    SignalBuffer<T>* voice_master_audio_buffer = nullptr; // Master audio output buffer for the voice
+    
 
     Context* m_context;
 };

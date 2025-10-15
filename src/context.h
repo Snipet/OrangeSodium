@@ -24,6 +24,7 @@ struct Context{
     size_t n_voices = 0; //Number of voices in use
     size_t max_voices = 16; //Maximum number of voices allowed
     unsigned int next_object_id = 0; // Incrementing ID for all objects (oscillators, filters, effects, etc)
+    size_t n_frames; // Number of frames per audio block
 
     unsigned int getNextObjectID() { return next_object_id++; }
 };

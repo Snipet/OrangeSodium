@@ -8,6 +8,8 @@ extern "C" {
 #include "lua/lauxlib.h"
 #include "lua/lualib.h"
 }
+#include <functional>
+#include <type_traits>
 
 namespace OrangeSodium{
 
@@ -29,6 +31,13 @@ public:
     void setTemplateVoice(Voice<T>* voice);
     Voice<T>* getTemplateVoice() const { return template_voice; }
     bool execute();
+    void setMasterOutputBufferInfoCallback(std::function<void(size_t)> callback) {
+        master_output_buffer_callback = callback;
+    }
+
+    std::function<void(size_t)>& getMasterOutputBufferCallback() {
+        return master_output_buffer_callback;
+    }
 
 private:
     Program(Context* context);
@@ -42,6 +51,8 @@ private:
     std::string program_data;
     lua_State* L = nullptr; //Lua state
     Voice<T>* template_voice = nullptr; //Template voice built by program
+
+    std::function<void(size_t)> master_output_buffer_callback; // Callback to set master output buffer info; void(size_t n_channels)
 };
 
 // Static member declaration

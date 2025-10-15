@@ -9,7 +9,7 @@ namespace OrangeSodium {
 template <typename T>
 class Synthesizer {
 public:
-    Synthesizer(Context* context, size_t n_voices, float sample_rate = 44100.0f);
+    Synthesizer(Context* context, size_t n_voices, float sample_rate = 44100.0f, size_t n_frames = 512);
     ~Synthesizer();
 
     void loadScript(std::string script_path);
@@ -24,5 +24,9 @@ private:
     std::vector<std::unique_ptr<Voice<T>>> voices;
     Context* m_context;
     Program<T>* program;
+    SignalBuffer<T>* master_output_buffer;
+
+    //Callback function for setting io information for master_output_buffer
+    std::function<void(size_t)> setMasterOutputBufferInfoCallback;
 };
 }

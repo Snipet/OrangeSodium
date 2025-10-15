@@ -106,6 +106,184 @@ static int l_get_object_type_double(lua_State* L) {
     return l_get_object_type_impl(L);
 }
 
+template <typename T>
+static int l_set_master_output_buffer_channels_impl(lua_State* L) {
+    // Set the number of channels for the master output buffer
+    // Arguments: n_channels (int)
+    // Returns: none
+
+    if (lua_gettop(L) < 1 || !lua_isinteger(L, 1)) {
+        return 0;
+    }
+    size_t n_channels = static_cast<size_t>(lua_tointeger(L, 1));
+    if (n_channels < 1) {
+        n_channels = 1;
+    }
+
+    // Get the Program instance from registry
+    lua_pushstring(L, "__program_instance");
+    lua_gettable(L, LUA_REGISTRYINDEX);
+    void* program_ptr = lua_touserdata(L, -1);
+    lua_pop(L, 1);
+
+    if (!program_ptr) {
+        return 0;
+    }
+
+    Program<T>* program = static_cast<Program<T>*>(program_ptr);
+    auto& callback = program->getMasterOutputBufferCallback();
+    if (callback) {
+        callback(n_channels);
+    }
+
+    return 1;
+}
+
+static int l_set_master_output_buffer_channels_float(lua_State* L) {
+    return l_set_master_output_buffer_channels_impl<float>(L);
+}
+static int l_set_master_output_buffer_channels_double(lua_State* L) {
+    return l_set_master_output_buffer_channels_impl<double>(L);
+}
+
+
+template <typename T>
+static int l_set_master_output_buffer_default_impl(lua_State* L){
+    // Set the master output buffer to a default stereo buffer
+    // Arguments: none
+    // Returns: none
+
+    // Get the Program instance from registry
+    lua_pushstring(L, "__program_instance");
+    lua_gettable(L, LUA_REGISTRYINDEX);
+    void* program_ptr = lua_touserdata(L, -1);
+    lua_pop(L, 1);
+
+    if (!program_ptr) {
+        return 0;
+    }
+
+    Program<T>* program = static_cast<Program<T>*>(program_ptr);
+    auto& callback = program->getMasterOutputBufferCallback();
+    if (callback) {
+        callback(2); // Default to stereo
+    }
+
+    return 1;
+}
+static int l_set_master_output_buffer_default_float(lua_State* L) {
+    return l_set_master_output_buffer_default_impl<float>(L);
+}
+static int l_set_master_output_buffer_default_double(lua_State* L) {
+    return l_set_master_output_buffer_default_impl<double>(L);
+}
+
+template <typename T>
+static int l_set_voice_output_buffer_channels_impl(lua_State* L) {
+    // Set the number of channels for the voice's master audio buffer
+    // Arguments: n_channels (int)
+    // Returns: none
+
+    if (lua_gettop(L) < 1 || !lua_isinteger(L, 1)) {
+        return 0;
+    }
+    size_t n_channels = static_cast<size_t>(lua_tointeger(L, 1));
+    if (n_channels < 1) {
+        n_channels = 1;
+    }
+
+    // Get the template voice pointer from registry
+    lua_pushstring(L, "__template_voice");
+    lua_gettable(L, LUA_REGISTRYINDEX);
+    void* voice_ptr = lua_touserdata(L, -1);
+    lua_pop(L, 1);
+
+    if (!voice_ptr) {
+        return 0;
+    }
+
+    Voice<T>* voice = static_cast<Voice<T>*>(voice_ptr);
+    voice->setMasterAudioBufferInfo(n_channels);
+
+    return 1;
+}
+static int l_set_voice_output_buffer_channels_float(lua_State* L) {
+    return l_set_voice_output_buffer_channels_impl<float>(L);
+}
+static int l_set_voice_output_buffer_channels_double(lua_State* L) {
+    return l_set_voice_output_buffer_channels_impl<double>(L);
+}
+
+template <typename T>
+static int l_set_voice_output_buffer_default_impl(lua_State* L){
+    // Set the voice's master audio buffer to a default stereo buffer
+    // Arguments: none
+    // Returns: none
+
+    // Get the template voice pointer from registry
+    lua_pushstring(L, "__template_voice");
+    lua_gettable(L, LUA_REGISTRYINDEX);
+    void* voice_ptr = lua_touserdata(L, -1);
+    lua_pop(L, 1);
+
+    if (!voice_ptr) {
+        return 0;
+    }
+
+    Voice<T>* voice = static_cast<Voice<T>*>(voice_ptr);
+    voice->setMasterAudioBufferInfo(2); // Default to stereo
+
+    return 1;
+}
+static int l_set_voice_output_buffer_default_float(lua_State* L) {
+    return l_set_voice_output_buffer_default_impl<float>(L);
+}
+static int l_set_voice_output_buffer_default_double(lua_State* L) {
+    return l_set_voice_output_buffer_default_impl<double>(L);
+}
+
+template <typename T>
+static int l_config_default_io_impl(lua_State* L) {
+    // Configure default IO: stereo master output and voice output
+    // Arguments: none
+    // Returns: none
+
+    // Get the Program instance from registry
+    lua_pushstring(L, "__program_instance");
+    lua_gettable(L, LUA_REGISTRYINDEX);
+    void* program_ptr = lua_touserdata(L, -1);
+    lua_pop(L, 1);
+
+    if (!program_ptr) {
+        return 0;
+    }
+
+    Program<T>* program = static_cast<Program<T>*>(program_ptr);
+    auto& callback = program->getMasterOutputBufferCallback();
+    if (callback) {
+        callback(2); // Default to stereo
+    }
+
+    // Get the template voice pointer from registry
+    lua_pushstring(L, "__template_voice");
+    lua_gettable(L, LUA_REGISTRYINDEX);
+    void* voice_ptr = lua_touserdata(L, -1);
+    lua_pop(L, 1);
+
+    if (voice_ptr) {
+        Voice<T>* voice = static_cast<Voice<T>*>(voice_ptr);
+        voice->setMasterAudioBufferInfo(2); // Default to stereo
+    }
+
+    return 1;
+}
+static int l_config_default_io_float(lua_State* L) {
+    return l_config_default_io_impl<float>(L);
+}
+static int l_config_default_io_double(lua_State* L) {
+    return l_config_default_io_impl<double>(L);
+}
+
 //==========================================================================
 
 // Singleton implementation
@@ -146,9 +324,19 @@ Program<T>::Program(Context* context) : context(context), program_path(""), prog
     if constexpr (std::is_same_v<T, float>) {
         lua_register(L, "add_sine_osc", l_add_sine_osc_float);
         lua_register(L, "get_object_type", l_get_object_type_float);
+        lua_register(L, "config_master_output", l_set_master_output_buffer_channels_float);
+        lua_register(L, "config_master_output_default", l_set_master_output_buffer_default_float);
+        lua_register(L, "config_voice_output", l_set_voice_output_buffer_channels_float);
+        lua_register(L, "config_voice_output_default", l_set_voice_output_buffer_default_float);
+        lua_register(L, "config_default_io", l_config_default_io_float);
     } else if constexpr (std::is_same_v<T, double>) {
         lua_register(L, "add_sine_osc", l_add_sine_osc_double);
         lua_register(L, "get_object_type", l_get_object_type_double);
+        lua_register(L, "config_master_output", l_set_master_output_buffer_channels_double);
+        lua_register(L, "config_master_output_default", l_set_master_output_buffer_default_double);
+        lua_register(L, "config_voice_output", l_set_voice_output_buffer_channels_double);
+        lua_register(L, "config_voice_output_default", l_set_voice_output_buffer_default_double);
+        lua_register(L, "config_default_io", l_config_default_io_double);
     }
 
 }
@@ -190,6 +378,7 @@ bool Program<T>::execute() {
     }
     luaL_openlibs(L);
     if (luaL_dostring(L, program_data.c_str()) != LUA_OK) {
+        std::cerr << "[Program] Lua error: " << lua_tostring(L, -1) << std::endl;
         lua_close(L);
         return false;
     }

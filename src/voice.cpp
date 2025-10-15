@@ -6,7 +6,7 @@ namespace OrangeSodium{
 template <typename T>
 Voice<T>::Voice(Context* context) : m_context(context)
 {
-
+    voice_master_audio_buffer = new SignalBuffer<T>(SignalBuffer<T>::EType::kAudio, context->n_frames, 2); // Default to stereo
 }
 
 template <typename T>
@@ -21,7 +21,10 @@ Voice<T>::~Voice()
         delete filter;
     }
     // Clean up buffers
-    for (auto* buffer : buffers) {
+    for (auto* buffer : audio_buffers) {
+        delete buffer;
+    }
+    for (auto* buffer : mod_buffers) {
         delete buffer;
     }
 }

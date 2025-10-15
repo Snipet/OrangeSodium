@@ -3,6 +3,8 @@
 
 print("Basic script loaded successfully!")
 
+config_master_output_default()
+
 os_version = get_osodium_version()
 print("OrangeSodium Version: " .. os_version)
 
