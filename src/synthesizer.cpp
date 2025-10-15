@@ -5,28 +5,32 @@
 namespace OrangeSodium {
 
 template <typename T>
-Synthesizer<T>::Synthesizer(Context* context, size_t n_voices) : m_context(context) {
+Synthesizer<T>::Synthesizer(Context* context, size_t n_voices, float sample_rate) : m_context(context) {
     voices.reserve(n_voices);
-    program = nullptr;
+    m_context->n_voices = n_voices;
+    m_context->sample_rate = sample_rate;
+
+    // Get or create singleton instance
+    program = Program<T>::getInstance(m_context);
 }
 
 template <typename T>
 Synthesizer<T>::~Synthesizer() {
+    // Note: Don't delete program here as it's a singleton
+    // Call Program<T>::destroyInstance() explicitly when done with all synthesizers
 }
 
 template <typename T>
 void Synthesizer<T>::loadScript(std::string script_path) {
     std::cout << "[synthesizer.cpp] Loading script: " << script_path << std::endl;
-    if (program) {
-        std::cout << "[synthesizer.cpp] Deleting existing program" << std::endl;
-        delete program;
+
+    if (!program) {
+        program = Program<T>::getInstance(m_context);
     }
-    program = new Program(m_context);
-    std::cout << "[synthesizer.cpp] Created program. Loading  " << script_path << std::endl;
+
+    std::cout << "[synthesizer.cpp] Using singleton program instance. Loading " << script_path << std::endl;
     if (!program->loadFromFile(script_path)) {
         std::cerr << "[synthesizer.cpp] Failed to load script: " << script_path << std::endl;
-        delete program;
-        program = nullptr;
     }
 }
 
@@ -36,15 +40,29 @@ void Synthesizer<T>::buildSynthFromProgram() {
     if (!program) {
         return;
     }
-
     ConsoleUtility::logGreen("======= Executing program ========");
-
+    Voice<T>* template_voice = new Voice<T>(m_context);
+    program->setTemplateVoice(template_voice);
     if (!program->execute()) {
         return;
     }
 
+    //This is the template voice that will be cloned for each voice
+
 
     ConsoleUtility::logGreen("======= Program execution complete ========");
+
+    std::cout << "[synthesizer.cpp] Copying template voice" << std::endl;
+
+
+    //Now that the template voice is built, clone it for each voice
+    // IMPORTANT!! ObjectIDs must be unique across all objects in the synthesizer
+    // This means that when cloning objects, we must assign new IDs
+    for (size_t i = 0; i < m_context->n_voices; ++i) {
+        voices.push_back(std::make_unique<Voice<T>>(*template_voice));
+    }
+
+    std::cout << "[synthesizer.cpp] Built " << voices.size() << " voices" << std::endl;
 }
 
 // Explicit template instantiations

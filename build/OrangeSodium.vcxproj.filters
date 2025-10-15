@@ -22,6 +22,9 @@
     <ClCompile Include="C:\Users\seant\Documents\Projects\OrangeSodium\src\effects\simple_distortion.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="C:\Users\seant\Documents\Projects\OrangeSodium\src\oscillators\sine_osc.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <CustomBuild Include="C:\Users\seant\Documents\Projects\OrangeSodium\CMakeLists.txt" />

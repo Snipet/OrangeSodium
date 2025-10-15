@@ -1,4 +1,6 @@
 #include "voice.h"
+#include "oscillators/sine_osc.h"
+
 namespace OrangeSodium{
 
 template <typename T>
@@ -22,6 +24,35 @@ Voice<T>::~Voice()
     for (auto* buffer : buffers) {
         delete buffer;
     }
+}
+
+template <typename T>
+ObjectID Voice<T>::addSineOscillator(size_t n_channels) {
+    ObjectID id = m_context->getNextObjectID();
+    SineOscillator<T>* osc = new SineOscillator<T>(m_context, id, n_channels);
+    oscillators.push_back(osc);
+    oscillator_ids.push_back(id);
+    return id;
+}
+
+template <typename T>
+typename Voice<T>::EObjectType Voice<T>::getObjectType(ObjectID id) {
+    // Check oscillators
+    for (const auto& osc_id : oscillator_ids) {
+        if (osc_id == id) {
+            return EObjectType::kOscillator;
+        }
+    }
+    // Check filters
+    for (const auto& filter_id : filter_ids) {
+        // Assuming Filter class has an 'id' member similar to Oscillator
+        if (filter_id == id) {
+            return EObjectType::kFilter;
+        }
+    }
+    // Add checks for effects and modulators
+
+    return EObjectType::kUndefined; // Not found
 }
 
 // Explicit template instantiations

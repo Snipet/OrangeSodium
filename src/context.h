@@ -23,6 +23,9 @@ struct Context{
     long long last_frame_time = 0; // Time in microseconds of the last audio frame processing. Used for performance monitoring.
     size_t n_voices = 0; //Number of voices in use
     size_t max_voices = 16; //Maximum number of voices allowed
+    unsigned int next_object_id = 0; // Incrementing ID for all objects (oscillators, filters, effects, etc)
+
+    unsigned int getNextObjectID() { return next_object_id++; }
 };
 
 }

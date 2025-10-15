@@ -1,4 +1,5 @@
 //Template oscillator class
+#pragma once
 
 #include "context.h"
 #include "signal_buffer.h"
@@ -8,8 +9,12 @@ namespace OrangeSodium{
 template <typename T>
 class Oscillator {
 public:
-    Oscillator(Context* context, T* sample_rate);
-    ~Oscillator() = default;
+    enum class EModChannel{
+        kPitch = 0,
+    };
+
+    Oscillator(Context* context, ObjectID id, size_t n_channels);
+    virtual ~Oscillator() = default;
 
     /// @brief Run the oscillator
     /// @param audio_inputs External audio source that may affect synthesis (FM, PM, etc.)
@@ -18,16 +23,11 @@ public:
     virtual void processBlock(SignalBuffer<T>* audio_inputs, SignalBuffer<T>* mod_inputs, SignalBuffer<T>* outputs) = 0;
     virtual void onSampleRateChange(T new_sample_rate) = 0;
 
-    T getPitchHz() const { return pitch_hz; }
-    void setPitchHz(T pitch) { pitch_hz = pitch; }
-    T getSampleRate() const { return sample_rate; }
-    void setSampleRate(T rate) { sample_rate = rate; onSampleRateChange(rate); }
-
 protected:
-    T pitch_hz;
-    T sample_rate;
     Context* m_context;
-
+    ObjectID id; // Unique ID for this oscillator instance (used for modulation routing, etc)
+    T sample_rate;
+    size_t n_channels = 0; // Number of output channels
 };
 
 }

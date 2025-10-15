@@ -133,6 +133,19 @@ void SignalBuffer<T>::setChannel(size_t channel, size_t length, size_t division,
     buffer_ids[channel] = id;
 }
 
+template <typename T>
+void SignalBuffer<T>::assignExistingBuffer(size_t channel, T* data, size_t length, size_t division, ObjectID id) {
+    if (channel < n_channels) {
+        if (buffer[channel]) {
+            delete[] buffer[channel];
+        }
+        buffer[channel] = data;
+        channel_lengths[channel] = length;
+        channel_divisions[channel] = division;
+        buffer_ids[channel] = id;
+    }
+}
+
 // Explicit template instantiations
 template class SignalBuffer<float>;
 template class SignalBuffer<double>;

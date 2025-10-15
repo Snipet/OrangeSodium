@@ -278,6 +278,7 @@ if %errorlevel% neq 0 goto :VCEnd</Command>
     <ClCompile Include="C:\Users\seant\Documents\Projects\OrangeSodium\src\synthesizer.cpp" />
     <ClCompile Include="C:\Users\seant\Documents\Projects\OrangeSodium\src\voice.cpp" />
     <ClCompile Include="C:\Users\seant\Documents\Projects\OrangeSodium\src\effects\simple_distortion.cpp" />
+    <ClCompile Include="C:\Users\seant\Documents\Projects\OrangeSodium\src\oscillators\sine_osc.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="C:\Users\seant\Documents\Projects\OrangeSodium\build\ZERO_CHECK.vcxproj">

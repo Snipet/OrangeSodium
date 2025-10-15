@@ -99,6 +99,7 @@ set(SOURCES
     src/synthesizer.cpp
     src/voice.cpp
     src/effects/simple_distortion.cpp
+    src/oscillators/sine_osc.cpp
 )
 
 # Create the library

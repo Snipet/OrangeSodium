@@ -22,7 +22,13 @@ public:
 
     EType getType() noexcept { return type; }
     T* getChannel(size_t channel) noexcept { return (channel < n_channels) ? buffer[channel] : nullptr; }
-    void setBufferId(size_t channel, unsigned int id) { if (channel < n_channels) buffer_ids[channel] = id; }
+    void setBufferId(size_t channel, unsigned int id) { if (channel < n_channels) buffer_ids[channel] = id; }\
+
+    size_t getChannelLength(size_t channel) noexcept { return (channel < n_channels) ? channel_lengths[channel] : 0; }
+    size_t getChannelDivision(size_t channel) noexcept { return (channel < n_channels) ? channel_divisions[channel] : 1; }
+    size_t getNumChannels() const noexcept { return n_channels; }
+    void assignExistingBuffer(size_t channel, T* data, size_t length, size_t division, ObjectID id);
+
 
     void resize(size_t* num_channels);
 
