@@ -1,5 +1,0 @@
-C:/Users/seant/Documents/Projects/OrangeSodium/build/CMakeFiles/OrangeSodium.dir
-C:/Users/seant/Documents/Projects/OrangeSodium/build/CMakeFiles/basic_example.dir
-C:/Users/seant/Documents/Projects/OrangeSodium/build/CMakeFiles/INSTALL.dir
-C:/Users/seant/Documents/Projects/OrangeSodium/build/CMakeFiles/ALL_BUILD.dir
-C:/Users/seant/Documents/Projects/OrangeSodium/build/CMakeFiles/ZERO_CHECK.dir

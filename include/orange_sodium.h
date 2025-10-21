@@ -5,7 +5,6 @@
 
 namespace OrangeSodium{
 
-template <typename T>
-Synthesizer<T>* createSynthesizerFromScript(std::string script_path);
+Synthesizer* createSynthesizerFromScript(std::string script_path);
 
 } // namespace OrangeSodium

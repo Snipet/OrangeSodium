@@ -5,13 +5,13 @@
 
 namespace OrangeSodium{
 
-template <typename T>
-Synthesizer<T>* createSynthesizerFromScript(std::string script_path){
+
+Synthesizer* createSynthesizerFromScript(std::string script_path){
     Context* context = new Context();
     std::cout << "[orange_sodium.cpp] Created context" << std::endl;
 
 
-    Synthesizer<T>* synth = new Synthesizer<T>(context, 16);
+    Synthesizer* synth = new Synthesizer(context, 16);
     std::cout << "[orange_sodium.cpp] Created synthesizer" << std::endl;
 
     std::cout << "[orange_sodium.cpp] Loading script: " << script_path << std::endl;
@@ -21,8 +21,5 @@ Synthesizer<T>* createSynthesizerFromScript(std::string script_path){
     return synth;
 }
 
-// Explicit template instantiations
-template Synthesizer<float>* createSynthesizerFromScript<float>(std::string script_path);
-template Synthesizer<double>* createSynthesizerFromScript<double>(std::string script_path);
 
 } // namespace OrangeSodium

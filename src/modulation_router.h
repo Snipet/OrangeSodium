@@ -16,20 +16,19 @@ In the Lua script, each object is assigned a unique 32-bit id.
 
 namespace OrangeSodium{
 
-template <typename T>
 class ModulationRouter {
 public:
     ModulationRouter(Context* context);
     ~ModulationRouter();
 
-    void registerParamSource(T* param_source, T* impl_source);
-    void addModulation(const Modulation<T>& modulation);
-    
+    void registerParamSource(float* param_source, float* impl_source);
+    void addModulation(const Modulation& modulation);
+
 
 private:
-    std::vector<T*> param_source; // Pointers to parameter sources (knobs). These are defined per-implementation for each object (e.g. drive for distortion effect)
-    std::vector<T*> impl_source; // Pointer to variable used in DSP code. These are the results of applying modulation to param_source
-    std::vector<Modulation<T>> m_modulations;
+    std::vector<float*> param_source; // Pointers to parameter sources (knobs). These are defined per-implementation for each object (e.g. drive for distortion effect)
+    std::vector<float*> impl_source; // Pointer to variable used in DSP code. These are the results of applying modulation to param_source
+    std::vector<Modulation> m_modulations;
     Context* m_context;
 };
 

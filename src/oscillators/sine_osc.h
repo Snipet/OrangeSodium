@@ -2,14 +2,13 @@
 #include "../oscillator.h"
 
 namespace OrangeSodium {
-template <typename T>
-class SineOscillator : public Oscillator<T> {
+class SineOscillator : public Oscillator {
 public:
     SineOscillator(Context* context, ObjectID id, size_t n_channels);
     ~SineOscillator() = default;
 
-    void processBlock(SignalBuffer<T>* audio_inputs, SignalBuffer<T>* mod_inputs, SignalBuffer<T>* outputs) override;
-    void onSampleRateChange(T new_sample_rate) override;
+    void processBlock(SignalBuffer* audio_inputs, SignalBuffer* mod_inputs, SignalBuffer* outputs, size_t n_audio_frames) override;
+    void onSampleRateChange(float new_sample_rate) override;
 
 
 };

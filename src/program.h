@@ -3,21 +3,20 @@
 #include <string>
 #include "context.h"
 #include "voice.h"
+#include "error_handler.h"
 extern "C" {
 #include "lua/lua.h"
 #include "lua/lauxlib.h"
 #include "lua/lualib.h"
 }
 #include <functional>
-#include <type_traits>
 
 namespace OrangeSodium{
 
-template <typename T>
 class Program{
 public:
     // Singleton access
-    static Program<T>* getInstance(Context* context = nullptr);
+    static Program* getInstance(Context* context = nullptr);
     static void destroyInstance();
 
     // Delete copy constructor and assignment operator
@@ -28,8 +27,8 @@ public:
     std::string getProgramPath() const { return program_path; }
     std::string getProgramName() const { return program_name; }
     Context* getContext() const { return context; }
-    void setTemplateVoice(Voice<T>* voice);
-    Voice<T>* getTemplateVoice() const { return template_voice; }
+    void setTemplateVoice(Voice* voice);
+    Voice* getTemplateVoice() const { return template_voice; }
     bool execute();
     void setMasterOutputBufferInfoCallback(std::function<void(size_t)> callback) {
         master_output_buffer_callback = callback;
@@ -39,24 +38,22 @@ public:
         return master_output_buffer_callback;
     }
 
+    void throwProgramError(ErrorCode code);
+
 private:
     Program(Context* context);
     ~Program();
 
-    static Program<T>* instance;
+    static Program* instance;
 
     std::string program_path;
     std::string program_name;
     Context* context;
     std::string program_data;
     lua_State* L = nullptr; //Lua state
-    Voice<T>* template_voice = nullptr; //Template voice built by program
+    Voice* template_voice = nullptr; //Template voice built by program
 
     std::function<void(size_t)> master_output_buffer_callback; // Callback to set master output buffer info; void(size_t n_channels)
 };
-
-// Static member declaration
-template <typename T>
-Program<T>* Program<T>::instance = nullptr;
 
 }
