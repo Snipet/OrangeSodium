@@ -8,6 +8,8 @@
 
 #include "PluginProcessor.h"
 #include "PluginEditor.h"
+// OrangeSodium
+#include "program.h"
 
 //==============================================================================
 OrangeSodiumTestingPlaygroundAudioProcessor::OrangeSodiumTestingPlaygroundAudioProcessor()
@@ -22,10 +24,15 @@ OrangeSodiumTestingPlaygroundAudioProcessor::OrangeSodiumTestingPlaygroundAudioP
                        )
 #endif
 {
+    synth = nullptr;
+    synthLoaded = false;
+    //initSynth();
 }
 
 OrangeSodiumTestingPlaygroundAudioProcessor::~OrangeSodiumTestingPlaygroundAudioProcessor()
 {
+    // Clean up singleton program if created
+    //OrangeSodium::Program::destroyInstance();
 }
 
 //==============================================================================
@@ -93,14 +100,18 @@ void OrangeSodiumTestingPlaygroundAudioProcessor::changeProgramName (int index, 
 //==============================================================================
 void OrangeSodiumTestingPlaygroundAudioProcessor::prepareToPlay (double sampleRate, int samplesPerBlock)
 {
-    // Use this method as the place to do any pre-playback
-    // initialisation that you need..
+    if (!synthLoaded) {
+        initSynth();
+        synthLoaded = true;
+    }
+    synth->prepare(2, samplesPerBlock, sampleRate);
+    //synth->setSampleRate(sampleRate);
 }
 
 void OrangeSodiumTestingPlaygroundAudioProcessor::releaseResources()
 {
-    // When playback stops, you can use this as an opportunity to free up any
-    // spare memory, etc.
+    //delete synth;
+    //OrangeSodium::Program::destroyInstance();
 }
 
 #ifndef JucePlugin_PreferredChannelConfigurations
@@ -144,17 +155,38 @@ void OrangeSodiumTestingPlaygroundAudioProcessor::processBlock (juce::AudioBuffe
     for (auto i = totalNumInputChannels; i < totalNumOutputChannels; ++i)
         buffer.clear (i, 0, buffer.getNumSamples());
 
-    // This is the place where you'd normally do the guts of your plugin's
-    // audio processing...
-    // Make sure to reset the state if your inner loop is processing
-    // the samples and the outer loop is handling the channels.
-    // Alternatively, you can process the samples with the channels
-    // interleaved by keeping the same state.
-    for (int channel = 0; channel < totalNumInputChannels; ++channel)
-    {
-        auto* channelData = buffer.getWritePointer (channel);
 
-        // ..do something to the data...
+    // Handle MIDI
+    for (const auto metadata : midiMessages)
+    {
+        const auto& msg = metadata.getMessage();
+        if (msg.isNoteOn())
+        {
+            if (synth)
+                synth->processMidiEvent(msg.getNoteNumber(), true);
+        }
+        else if (msg.isNoteOff())
+        {
+            if (synth)
+                synth->processMidiEvent(msg.getNoteNumber(), false);
+        }
+    }
+
+    // Prepare for dynamic changes in buffer size/channels
+    if (synth)
+    {
+        const auto nCh = static_cast<size_t>(buffer.getNumChannels());
+        const auto nSmps = static_cast<size_t>(buffer.getNumSamples());
+        //synth->prepare(nCh, nSmps);
+
+        // Provide channel pointers directly to the synth
+        float* outs[64] = { nullptr }; // support up to 64 channels for safety
+        for (int c = 0; c < buffer.getNumChannels() && c < 64; ++c)
+            outs[c] = buffer.getWritePointer(c);
+
+        // Zero the buffer before rendering (synth writes fresh data)
+        buffer.clear();
+        synth->processBlock(outs, static_cast<size_t>(buffer.getNumChannels()), static_cast<size_t>(buffer.getNumSamples()));
     }
 }
 
@@ -188,4 +220,69 @@ void OrangeSodiumTestingPlaygroundAudioProcessor::setStateInformation (const voi
 juce::AudioProcessor* JUCE_CALLTYPE createPluginFilter()
 {
     return new OrangeSodiumTestingPlaygroundAudioProcessor();
+}
+
+// ==================== Internal helpers ====================
+juce::File OrangeSodiumTestingPlaygroundAudioProcessor::findDefaultScript() const
+{
+    // Try a few likely locations relative to the plugin and project root
+    const juce::String relPath = "C:/users/seant/Documents/projects/OrangeSodium/examples/basic/script.lua";
+
+    // 1) Try relative to current working directory
+    {
+        auto f = juce::File::getCurrentWorkingDirectory().getChildFile(relPath);
+        if (f.existsAsFile()) return f;
+    }
+
+    // 2) Try relative to the plugin source directory (during dev)
+    {
+        auto here = juce::File(__FILE__);
+        auto projRoot = here.getParentDirectory() // PluginProcessor.cpp
+                            .getParentDirectory() // Source
+                            .getParentDirectory(); // OrangeSodiumTestingPlayground
+        auto f = projRoot.getSiblingFile(relPath);
+        if (f.existsAsFile()) return f;
+    }
+
+    // 3) Walk up from executable location
+    {
+        auto exe = juce::File::getSpecialLocation(juce::File::currentExecutableFile);
+        auto dir = exe.getParentDirectory();
+        for (int i = 0; i < 6; ++i)
+        {
+            auto f = dir.getChildFile(relPath);
+            if (f.existsAsFile()) return f;
+            dir = dir.getParentDirectory();
+        }
+    }
+
+    return {};
+}
+
+void OrangeSodiumTestingPlaygroundAudioProcessor::initSynth()
+{
+
+    auto scriptFile = findDefaultScript();
+    if (!scriptFile.existsAsFile())
+    {
+        juce::Logger::writeToLog("OrangeSodium: Could not find default script.lua");
+        return;
+    }
+    //synth = OrangeSodium::createSynthesizerFromScript(scriptFile.getFullPathName().toStdString());
+    //synth = OrangeSodium::createSynthesizerFromScript("scriptFile.getFullPathName().toStdString()");
+
+    try
+    {
+        synth = OrangeSodium::createSynthesizerFromScript(scriptFile.getFullPathName().toStdString());
+        if (synth)
+        {
+            //synth->setSampleRate(static_cast<float>(sampleRate));
+            synth->buildSynthFromProgram();
+            //synth->prepare(static_cast<size_t>(getTotalNumOutputChannels()), static_cast<size_t>(samplesPerBlock));
+        }
+    }
+    catch (...) {
+        juce::Logger::writeToLog("OrangeSodium: Exception while initializing synthesizer");
+        //synth.reset();
+    }
 }

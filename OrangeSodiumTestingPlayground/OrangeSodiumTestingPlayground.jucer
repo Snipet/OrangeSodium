@@ -2,7 +2,8 @@
 
 <JUCERPROJECT id="DfnvN7" name="OrangeSodiumTestingPlayground" projectType="audioplug"
               useAppConfig="0" addUsingNamespaceToJuceHeader="0" jucerFormatVersion="1"
-              pluginCharacteristicsValue="pluginIsSynth,pluginWantsMidiIn">
+              pluginCharacteristicsValue="pluginIsSynth,pluginWantsMidiIn"
+              companyName="SeanFunk">
   <MAINGROUP id="tdtU52" name="OrangeSodiumTestingPlayground">
     <GROUP id="{CFC080E0-3DF5-88F5-C1D3-B677FD1D67B0}" name="Source">
       <FILE id="oNLl4G" name="PluginProcessor.cpp" compile="1" resource="0"
@@ -16,10 +17,11 @@
   </MAINGROUP>
   <JUCEOPTIONS JUCE_STRICT_REFCOUNTEDPOINTER="1" JUCE_VST3_CAN_REPLACE_VST2="0"/>
   <EXPORTFORMATS>
-    <VS2022 targetFolder="Builds/VisualStudio2022" externalLibraries="OrangeSodium.lib">
+    <VS2022 targetFolder="Builds/VisualStudio2022" externalLibraries="OrangeSodium.lib&#10;lua55.lib">
       <CONFIGURATIONS>
         <CONFIGURATION isDebug="1" name="Debug" targetName="OrangeSodiumTestingPlayground"
-                       headerPath="../include&#10;" libraryPath="../build/Debug" enablePluginBinaryCopyStep="1"/>
+                       headerPath="../../../include&#10;../../../src&#10;" libraryPath="../../../build/Debug&#10;../../../third_party/lua/build/Debug"
+                       enablePluginBinaryCopyStep="1"/>
         <CONFIGURATION isDebug="0" name="Release" targetName="OrangeSodiumTestingPlayground"/>
       </CONFIGURATIONS>
       <MODULEPATHS>

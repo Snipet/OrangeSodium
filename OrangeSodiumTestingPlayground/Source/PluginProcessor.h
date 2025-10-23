@@ -9,6 +9,11 @@
 #pragma once
 
 #include <JuceHeader.h>
+#include "orange_sodium.h"
+
+namespace OrangeSodium {
+class Program; // forward declaration for cleanup
+}
 
 //==============================================================================
 /**
@@ -54,6 +59,12 @@ public:
     void setStateInformation (const void* data, int sizeInBytes) override;
 
 private:
+    // Synth integration
+    OrangeSodium::Synthesizer* synth;
+    juce::File findDefaultScript() const;
+    void initSynth();
+    bool synthLoaded;
+
     //==============================================================================
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (OrangeSodiumTestingPlaygroundAudioProcessor)
 };

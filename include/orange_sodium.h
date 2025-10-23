@@ -1,7 +1,6 @@
 #pragma once
 
 #include "synthesizer.h"
-#include "lua/lua.h"
 
 namespace OrangeSodium{
 

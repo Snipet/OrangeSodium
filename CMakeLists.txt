@@ -100,6 +100,8 @@ set(SOURCES
     src/voice.cpp
     src/effects/simple_distortion.cpp
     src/oscillators/sine_osc.cpp
+    src/modulator_producer.cpp
+    src/modulation_producers/basic_envelope.cpp
 )
 
 # Create the library

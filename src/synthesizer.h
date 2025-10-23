@@ -14,13 +14,14 @@ public:
     void loadScript(std::string script_path);
     void buildSynthFromProgram();
 
-    void setSampleRate(float sample_rate) { m_context->sample_rate = sample_rate; }
+    //void setSampleRate(float sample_rate) { m_context->sample_rate = sample_rate; }
     float getSampleRate() const { return static_cast<float>(m_context->sample_rate); }
 
     void processBlock(size_t n_audio_frames);
     void getOutput(float** output_buffers, size_t n_channels, size_t n_frames);
     void processBlock(float** output_buffers, size_t n_channels, size_t n_frames);
-    void prepare(size_t n_channels, size_t n_frames);
+    void prepare(size_t n_channels, size_t n_frames, float sample_rate);
+    void processMidiEvent(int midi_note, bool note_on);
 
 
 

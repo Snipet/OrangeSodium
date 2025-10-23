@@ -21,7 +21,7 @@ public:
 
     EType getType() noexcept { return type; }
     float* getChannel(size_t channel) noexcept { return (channel < n_channels) ? buffer[channel] : nullptr; }
-    void setBufferId(size_t channel, unsigned int id) { if (channel < n_channels) buffer_ids[channel] = id; }\
+    void setBufferId(size_t channel, unsigned int id) { if (channel < n_channels) buffer_ids[channel] = id; }
 
     size_t getChannelLength(size_t channel) noexcept { return (channel < n_channels) ? channel_lengths[channel] : 0; }
     size_t getChannelDivision(size_t channel) noexcept { return (channel < n_channels) ? channel_divisions[channel] : 1; }
@@ -32,6 +32,8 @@ public:
     ObjectID getBufferId(size_t channel) noexcept { return (channel < n_channels) ? buffer_ids[channel] : 0; }
     void setChannelDivision(size_t channel, size_t division) { if (channel < n_channels) channel_divisions[channel] = division; }
     void setConstantValue(size_t channel, float value);
+
+    //void setChannelFromExistingBuffer(size_t channel, float* data, size_t length, size_t division, ObjectID id);
 
     /// @brief Zero out all buffer data
     void zeroOut();
@@ -49,6 +51,7 @@ public:
 
 private:
     float** buffer;
+    //bool* is_from_other_buffer;
     ObjectID* buffer_ids;     //IDs that point to the source of each channel (e.g. which oscillator, filter, effect, modulation producer, etc)
     size_t* channel_lengths;  // Length of each channel (in samples)
     size_t* channel_divisions; // For modulation buffers, this indicates how many samples to skip. For example, a division of 4 means the buffer is at 1/4 the sample rate of audio

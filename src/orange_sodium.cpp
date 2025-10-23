@@ -11,7 +11,7 @@ Synthesizer* createSynthesizerFromScript(std::string script_path){
     std::cout << "[orange_sodium.cpp] Created context" << std::endl;
 
 
-    Synthesizer* synth = new Synthesizer(context, 16);
+    Synthesizer* synth = new Synthesizer(context, 1);
     std::cout << "[orange_sodium.cpp] Created synthesizer" << std::endl;
 
     std::cout << "[orange_sodium.cpp] Loading script: " << script_path << std::endl;

@@ -181,5 +181,6 @@ void SignalBuffer::resize(size_t n_channels, size_t n_frames) {
         channel_lengths[i] = n_frames;
         channel_divisions[i] = 1; // Reset division to default
     }
+}
 
 }

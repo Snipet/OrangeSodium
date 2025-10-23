@@ -1,6 +1,7 @@
 #include "synthesizer.h"
 #include <iostream>
 #include "console_utility.h"
+#include <fstream>
 
 namespace OrangeSodium {
 
@@ -8,34 +9,37 @@ Synthesizer::Synthesizer(Context* context, size_t n_voices, float sample_rate, s
     voices.reserve(n_voices);
     m_context->n_voices = n_voices;
     m_context->sample_rate = sample_rate;
-    m_context->n_frames = n_frames;
+    m_context->max_n_frames = n_frames;
     master_output_buffer = nullptr;
 
-    // Get or create singleton instance
-    program = Program::getInstance(m_context);
+    // Create Program instance
+    program = new Program(m_context);
     setMasterOutputBufferInfoCallback = [this](size_t n_channels) {
         if (master_output_buffer) {
             delete master_output_buffer;
         }
-        master_output_buffer = new SignalBuffer(SignalBuffer::EType::kAudio, m_context->n_frames, n_channels);
+        master_output_buffer = new SignalBuffer(SignalBuffer::EType::kAudio, m_context->max_n_frames, n_channels);
     };
     program->setMasterOutputBufferInfoCallback(setMasterOutputBufferInfoCallback);
 
 }
 
 Synthesizer::~Synthesizer() {
-    // Note: Don't delete program here as it's a singleton
-    // Call Program::destroyInstance() explicitly when done with all synthesizers
+    if (program) {
+        delete program;
+        program = nullptr;
+    }
 }
 
 void Synthesizer::loadScript(std::string script_path) {
     std::cout << "[synthesizer.cpp] Loading script: " << script_path << std::endl;
 
     if (!program) {
-        program = Program::getInstance(m_context);
+        std::cerr << "[synthesizer.cpp] Error: Program instance not initialized" << std::endl;
+        return;
     }
 
-    std::cout << "[synthesizer.cpp] Using singleton program instance. Loading " << script_path << std::endl;
+    std::cout << "[synthesizer.cpp] Loading " << script_path << std::endl;
     if (!program->loadFromFile(script_path)) {
         std::cerr << "[synthesizer.cpp] Failed to load script: " << script_path << std::endl;
     }
@@ -126,15 +130,49 @@ void Synthesizer::processBlock(float** output_buffers, size_t n_channels, size_t
     getOutput(output_buffers, n_channels, n_frames);
 }
 
-void Synthesizer::prepare(size_t n_channels, size_t n_frames){
-    m_context->n_frames = n_frames;
+void Synthesizer::prepare(size_t n_channels, size_t n_frames, float sample_rate){
+    m_context->max_n_frames = n_frames;
+    m_context->sample_rate = sample_rate;
     for(auto& voice : voices){
         voice->setMasterAudioBufferInfo(n_channels);
-        voice->resizeAudioBuffers(n_frames);
+        voice->resizeBuffers(n_frames);
+        voice->setSampleRate(sample_rate);
     }
     setMasterOutputBufferInfoCallback(n_channels);
-    master_output_buffer = new SignalBuffer();
-    master_output_buffer->resize(n_channels, n_frames);
+    if(master_output_buffer) {
+        master_output_buffer->resize(n_channels, n_frames);
+    } else {
+        master_output_buffer = new SignalBuffer(SignalBuffer::EType::kAudio, n_frames, n_channels);
+    }
+    //master_output_buffer->resize(n_channels, n_frames);
+}
+
+void Synthesizer::processMidiEvent(int midi_note, bool note_on){
+    bool voice_found = false;
+    for(auto& voice : voices){
+        if(note_on && !voice->isPlaying()){
+            voice->activate(midi_note);
+            voice_found = true;
+            break; // Activate only one voice
+        } else if(!note_on && voice->isPlaying() && voice->getCurrentMIDINote() == midi_note){
+            voice->deactivate();
+            break; // Deactivate only one voice
+        }
+    }
+    if(!voice_found && note_on){
+        //Override oldest voice
+        unsigned int oldest_age = 0;
+        Voice* oldest_voice = nullptr;
+        for(auto& voice : voices){
+            if(voice->getVoiceAge() >= oldest_age){
+                oldest_age = voice->getVoiceAge();
+                oldest_voice = voice.get();
+            }
+        }
+        if(oldest_voice){
+            oldest_voice->activate(midi_note);
+        }
+    }
 }
 
 } // namespace OrangeSodium

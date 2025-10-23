@@ -4,24 +4,14 @@
 #include "context.h"
 #include "voice.h"
 #include "error_handler.h"
-extern "C" {
-#include "lua/lua.h"
-#include "lua/lauxlib.h"
-#include "lua/lualib.h"
-}
 #include <functional>
 
 namespace OrangeSodium{
 
 class Program{
 public:
-    // Singleton access
-    static Program* getInstance(Context* context = nullptr);
-    static void destroyInstance();
-
-    // Delete copy constructor and assignment operator
-    Program(const Program&) = delete;
-    Program& operator=(const Program&) = delete;
+    Program(Context* context);
+    ~Program();
 
     bool loadFromFile(const std::string& path);
     std::string getProgramPath() const { return program_path; }
@@ -41,16 +31,11 @@ public:
     void throwProgramError(ErrorCode code);
 
 private:
-    Program(Context* context);
-    ~Program();
-
-    static Program* instance;
-
     std::string program_path;
     std::string program_name;
     Context* context;
     std::string program_data;
-    lua_State* L = nullptr; //Lua state
+    void* L = nullptr; //Lua state
     Voice* template_voice = nullptr; //Template voice built by program
 
     std::function<void(size_t)> master_output_buffer_callback; // Callback to set master output buffer info; void(size_t n_channels)
