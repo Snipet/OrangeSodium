@@ -24,12 +24,16 @@ print("Object type of ID " .. sine_osc .. " is: " .. tostring(obj_type))
 connected_buf = get_connected_audio_buffer_for_oscillator(sine_osc)
 print("Connected audio buffer for oscillator ID " .. sine_osc .. " is: " .. tostring(connected_buf))
 
-basic_env = add_basic_envelope()
-print("Added basic envelope with ID: " .. basic_env)
+amp_env = add_basic_envelope(0.0, 0.3, 0.1, 0.5)
+print("Added basic envelope with ID: " .. amp_env)
+
+pitch_env = add_basic_envelope(0.0, 0.01, 0.0, 0.5)
+print("Added pitch envelope with ID: " .. pitch_env)
 
 -- Connect the envelope to the oscillator's amplitude
-add_modulation(basic_env, "output", sine_osc, "amplitude", 1.0)
+add_modulation(amp_env, "output", sine_osc, "amplitude", 1.0)
+add_modulation(pitch_env, "output", sine_osc, "pitch", 24.0)
 
-print("Modulation added from envelope ID " .. basic_env .. " to oscillator ID " .. sine_osc)
+print("Modulation added from envelope ID " .. amp_env .. " to oscillator ID " .. sine_osc)
 
 set_voice_output(audio_buf)

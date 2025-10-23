@@ -15,6 +15,19 @@ BasicEnvelope::BasicEnvelope(Context* context, ObjectID id)
     modulation_output_names.push_back("output");
 }
 
+BasicEnvelope::BasicEnvelope(Context* context, ObjectID id, float attack, float decay, float sustain, float release)
+    : ModulationProducer(context, id),
+      attack_time(attack),
+      decay_time(decay),
+      sustain_level(sustain),
+      release_time(release) {
+    is_retriggered = false;
+    output_buffer = nullptr;
+
+    modulation_output_names.resize(0);
+    modulation_output_names.push_back("output");
+}
+
 BasicEnvelope::~BasicEnvelope() {}
 
 void BasicEnvelope::processBlock(SignalBuffer* mod_inputs, SignalBuffer* outputs){

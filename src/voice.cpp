@@ -1,6 +1,5 @@
 #include "voice.h"
 #include "oscillators/sine_osc.h"
-#include "modulation_producers/basic_envelope.h"
 
 namespace OrangeSodium{
 
@@ -42,9 +41,7 @@ ObjectID Voice::addSineOscillator(size_t n_channels, float amplitude) {
     return id;
 }
 
-ObjectID Voice::addBasicEnvelope() {
-    ObjectID id = m_context->getNextObjectID();
-    BasicEnvelope* env = new BasicEnvelope(m_context, id);
+ObjectID Voice::addBasicEnvelopeInternal(BasicEnvelope* env, ObjectID id) {
     SignalBuffer* mod_buffer = new SignalBuffer(SignalBuffer::EType::kMod, m_context->max_n_frames, 4); // Basic envelope uses 4 mod channels (attack, decay, sustain, release)
     SignalBuffer* mod_out_buffer = new SignalBuffer(SignalBuffer::EType::kMod, m_context->max_n_frames, 1); // Output buffer for envelope
     //mod_buffer->setId(m_context->getNextObjectID());
@@ -57,6 +54,18 @@ ObjectID Voice::addBasicEnvelope() {
     modulation_producers.push_back(env);
     modulation_producer_ids.push_back(id);
     return id;
+}
+
+ObjectID Voice::addBasicEnvelope() {
+    ObjectID id = m_context->getNextObjectID();
+    BasicEnvelope* env = new BasicEnvelope(m_context, id);
+    return addBasicEnvelopeInternal(env, id);
+}
+
+ObjectID Voice::addBasicEnvelope(float attack_time, float decay_time, float sustain_level, float release_time) {
+    ObjectID id = m_context->getNextObjectID();
+    BasicEnvelope* env = new BasicEnvelope(m_context, id, attack_time, decay_time, sustain_level, release_time);
+    return addBasicEnvelopeInternal(env, id);
 }
 
 EObjectType Voice::getObjectType(ObjectID id) {
@@ -256,11 +265,11 @@ void Voice::processVoice(size_t n_audio_frames) {
 
     // We need to set modulation inputs for each oscillator
     // For now, just set pitch and amplitude based on current_midi_note
-    const float pitch_hz = getHzFromMIDINote(current_midi_note);
+    const float pitch = static_cast<float>(current_midi_note);
     for(auto* osc : oscillators){
         SignalBuffer* mod_buffer = osc->getModBuffer();
         if(mod_buffer){
-            mod_buffer->setConstantValue(static_cast<size_t>(Oscillator::EModChannel::kPitch), pitch_hz);
+            mod_buffer->setConstantValue(static_cast<size_t>(Oscillator::EModChannel::kPitch), pitch);
             mod_buffer->setConstantValue(static_cast<size_t>(Oscillator::EModChannel::kAmplitude), 0.f);
         }
     }
@@ -343,6 +352,9 @@ void Voice::deactivate() {
 void Voice::setSampleRate(float sample_rate) {
     for (auto* osc : oscillators) {
         osc->setSampleRate(sample_rate);
+    }
+    for (auto* mod_prod : modulation_producers) {
+        mod_prod->onSampleRateChange(sample_rate);
     }
 }
 

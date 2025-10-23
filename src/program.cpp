@@ -452,8 +452,29 @@ static int l_add_basic_envelope(lua_State* L){
         return 1;
     }
 
+    bool has_env_parameters = false;
+    if (lua_gettop(L) >= 4) {
+        has_env_parameters = true;
+    }
+    float attack, decay, sustain, release;
+    if (has_env_parameters) {
+        if (!lua_isnumber(L, 1) || !lua_isnumber(L, 2) || !lua_isnumber(L, 3) || !lua_isnumber(L, 4)) {
+            lua_pushnil(L);
+            return 1;
+        }
+        attack = static_cast<float>(lua_tonumber(L, 1));
+        decay = static_cast<float>(lua_tonumber(L, 2));
+        sustain = static_cast<float>(lua_tonumber(L, 3));
+        release = static_cast<float>(lua_tonumber(L, 4));
+    }
+
     Voice* voice = static_cast<Voice*>(voice_ptr);
-    ObjectID id = voice->addBasicEnvelope();
+    ObjectID id;
+    if (has_env_parameters) {
+        id = voice->addBasicEnvelope(attack, decay, sustain, release);
+    } else {
+        id = voice->addBasicEnvelope();
+    }
 
     lua_pushinteger(L, id);
     return 1;

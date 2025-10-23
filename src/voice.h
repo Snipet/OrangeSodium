@@ -9,6 +9,7 @@
 #include <cmath>
 #include "modulator_producer.h"
 #include  "modulation.h"
+#include "modulation_producers/basic_envelope.h"
 
 namespace OrangeSodium{
 
@@ -28,6 +29,7 @@ public:
     }
 
     ObjectID addBasicEnvelope(); // Add a basic ADSR envelope as a modulation producer; returns its ObjectID
+    ObjectID addBasicEnvelope(float attack_time, float decay_time, float sustain_level, float release_time); // Add a basic ADSR envelope as a modulation producer; returns its ObjectID
 
     /// @brief Resize all buffers in the voice to the specified number of frames
     void resizeBuffers(size_t n_frames);
@@ -110,9 +112,7 @@ private:
 
     Context* m_context;
 
-    float getHzFromMIDINote(int midi_note) {
-        return 440.0f * std::pow(2.0f, (midi_note - 69) / 12.0f);
-    }
+    ObjectID addBasicEnvelopeInternal(BasicEnvelope* env, ObjectID id);
 };
 
 }

@@ -74,6 +74,10 @@ protected:
     
     // Names of modulation sources connected to this oscillator. This is used for linking modulation sources by name in Lua.
     std::vector<std::string> modulation_source_names;
+
+    float getHzFromMIDINote(float midi_note) {
+        return 440.0f * std::pow(2.0f, (midi_note - 69.f) / 12.0f);
+    }
 };
 
 }

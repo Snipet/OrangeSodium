@@ -17,6 +17,7 @@ namespace OrangeSodium {
 class BasicEnvelope : public ModulationProducer {
 public:
     BasicEnvelope(Context* context, ObjectID id);
+    BasicEnvelope(Context* context, ObjectID id, float attack, float decay, float sustain, float release);
     ~BasicEnvelope();
 
     void processBlock(SignalBuffer* mod_inputs, SignalBuffer* outputs) override;

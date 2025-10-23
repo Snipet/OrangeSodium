@@ -13,6 +13,9 @@ public:
 
     void loadScript(std::string script_path);
     void buildSynthFromProgram();
+    void setLogStream(std::ostream& stream) {
+        m_context->log_stream = &stream;
+    }
 
     //void setSampleRate(float sample_rate) { m_context->sample_rate = sample_rate; }
     float getSampleRate() const { return static_cast<float>(m_context->sample_rate); }

@@ -1,6 +1,7 @@
 //Synthesizer context shared across all objects
 #pragma once
 #include <string>
+#include <iostream>
 
 enum EAudioQuality {
     kLowQuality = 0,
@@ -15,6 +16,7 @@ struct Context{
     std::string os_build;
     std::string cpu_info;
     std::string simd_info;
+    std::ostream *log_stream = &std::cout;
     //size_t block_size;
     double sample_rate; // Global sample rate
     double oversample_rate; // Global oversample rate

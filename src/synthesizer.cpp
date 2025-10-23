@@ -145,6 +145,7 @@ void Synthesizer::prepare(size_t n_channels, size_t n_frames, float sample_rate)
         master_output_buffer = new SignalBuffer(SignalBuffer::EType::kAudio, n_frames, n_channels);
     }
     //master_output_buffer->resize(n_channels, n_frames);
+
 }
 
 void Synthesizer::processMidiEvent(int midi_note, bool note_on){
