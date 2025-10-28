@@ -6,6 +6,8 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
+set(CMAKE_PREFIX_PATH ${CMAKE_PREFIX_PATH} ${IPP_DIR})
+
 # Require SIMD macro (OS_AVX or OS_SSE)
 if(NOT DEFINED SIMD_TYPE)
     message(FATAL_ERROR "SIMD_TYPE must be defined. Set to either AVX or SSE using -DSIMD_TYPE=AVX or -DSIMD_TYPE=SSE")
@@ -69,8 +71,17 @@ if(MSVC)
         add_compile_options(/arch:AVX)
     endif()
 
+    # Remove default flags that CMake adds
+    foreach(flag_var CMAKE_CXX_FLAGS CMAKE_CXX_FLAGS_DEBUG CMAKE_CXX_FLAGS_RELEASE)
+        string(REPLACE "/RTC1" "" ${flag_var} "${${flag_var}}")
+        string(REPLACE "/MDd" "" ${flag_var} "${${flag_var}}")
+        string(REPLACE "/MD" "" ${flag_var} "${${flag_var}}")
+        string(REPLACE "/O2" "" ${flag_var} "${${flag_var}}")
+        string(REPLACE "/Ob0" "" ${flag_var} "${${flag_var}}")
+    endforeach()
+
     if(CMAKE_BUILD_TYPE STREQUAL "Debug")
-        add_compile_options(/Od /Zi /MDd)
+        add_compile_options(/Od /Zi /MDd /RTC1)
     else()
         add_compile_options(/O2 /MD)
     endif()
@@ -90,6 +101,17 @@ else()
     endif()
 endif()
 
+# Find Intel IPP - use ipps component for FFT and signal processing
+find_package(IPP REQUIRED COMPONENTS ipps)
+
+# Add IPP include directory
+if(IPP_FOUND)
+    # Get IPP root directory from the cmake package location
+    get_filename_component(IPP_ROOT "${IPP_DIR}/../../.." ABSOLUTE)
+    include_directories(${IPP_ROOT}/include)
+    message(STATUS "IPP include directory: ${IPP_ROOT}/include")
+endif()
+
 # Source files
 set(SOURCES
     src/orange_sodium.cpp
@@ -100,8 +122,15 @@ set(SOURCES
     src/voice.cpp
     src/effects/simple_distortion.cpp
     src/oscillators/sine_osc.cpp
+    src/oscillators/waveform_osc.cpp
     src/modulator_producer.cpp
     src/modulation_producers/basic_envelope.cpp
+    src/resource_manager.cpp
+    src/dsp/fft.cpp
+    src/filters/ZDF_filter.cpp
+    src/filter.cpp
+    src/effect.cpp
+    src/effects/effect_filter.cpp
 )
 
 # Create the library
@@ -113,12 +142,14 @@ add_library(${PROJECT_NAME} STATIC ${SOURCES})
 if(MSVC)
     target_link_libraries(${PROJECT_NAME}
         lua55
+        IPP::ipps
         # AudioFile is header-only, no linking needed
         # JSON is header-only, no linking needed
     )
 else()
     target_link_libraries(${PROJECT_NAME}
         lua55
+        IPP::ipps
         # AudioFile is header-only, no linking needed
         # JSON is header-only, no linking needed
     )
@@ -141,10 +172,14 @@ option(BUILD_EXAMPLES "Build example programs" ON)
 if(BUILD_EXAMPLES)
     # Basic example
     add_executable(basic_example examples/basic/main.cpp)
-    target_link_libraries(basic_example ${PROJECT_NAME})
+    target_link_libraries(basic_example ${PROJECT_NAME} IPP::ipps)
+
+    # FFT test example
+    add_executable(fft_test examples/fft_test/main.cpp)
+    target_link_libraries(fft_test IPP::ipps)
 
     # Set output directory for examples
-    set_target_properties(basic_example
+    set_target_properties(basic_example fft_test
         PROPERTIES
         RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/examples"
     )

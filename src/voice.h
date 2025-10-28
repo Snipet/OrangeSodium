@@ -10,6 +10,7 @@
 #include "modulator_producer.h"
 #include  "modulation.h"
 #include "modulation_producers/basic_envelope.h"
+#include "effect.h"
 
 namespace OrangeSodium{
 
@@ -19,6 +20,9 @@ public:
     ~Voice();
 
     ObjectID addSineOscillator(size_t n_channels, float amplitude); // Add a sine wave oscillator to the voice; returns its ObjectID
+    ErrorCode setOscillatorFrequencyOffset(ObjectID osc_id, float midi_note_offset); // Set frequency offset (in MIDI note numbers) for the specified oscillator
+    ObjectID addWaveformOscillator(size_t n_channels, ResourceID waveform_id, float amplitude); // Add a waveform oscillator to the voice; returns its ObjectID
+    ObjectID addEffectFilter(const std::string& filter_object_type, size_t n_channels, float frequency, float resonance); // Add a filter effect to the voice; returns its ObjectID
     ObjectID addAudioBuffer(size_t n_frames, size_t n_channels); // Add an audio buffer to the voice; returns its ObjectID
     EObjectType getObjectType(ObjectID id); // Get the type of object with the given ID; returns kOscillator, kFilter, etc. Returns kUndefined if not found (default)
     void setMasterAudioBufferInfo(size_t n_channels) {
@@ -40,7 +44,12 @@ public:
 
     ErrorCode connectMasterAudioBufferToSource(ObjectID buffer_id);
 
+    ErrorCode configureVoiceEffectsIO(ObjectID input_buffer_id, ObjectID output_buffer_id);
+
     void processVoice(size_t n_audio_frames);
+
+    // Called by program when the voice is finished building.
+    void connectVoiceEffects();
 
     ErrorCode addModulation(ObjectID source_id, std::string source_param, ObjectID target_id, std::string target_param, float amount, bool is_centered = false);
 
@@ -78,6 +87,11 @@ public:
         return voice_age;
     }
 
+    void setRandomDetune(float semitone_scale){
+        float r = rand() / static_cast<float>(RAND_MAX); // [0, 1]
+        voice_detune_semitones = (r * 2.0f - 1.0f) * semitone_scale; // [-semitone_scale, semitone_scale]
+    }
+
     void setSampleRate(float sample_rate);
 
 private:
@@ -85,9 +99,9 @@ private:
     std::vector<Oscillator*> oscillators;
     std::vector<ObjectID> oscillator_ids;
 
-    /// @brief Collection of all voice filters
-    std::vector<Filter*> filters;
-    std::vector<ObjectID> filter_ids;
+    /// @brief Collection of all voice effects
+    std::vector<Effect*> effects;
+    std::vector<ObjectID> effect_ids;
 
     /// @brief Collection of interconnecting signal buffers
     std::vector<SignalBuffer*> audio_buffers;
@@ -103,12 +117,17 @@ private:
     SignalBuffer* voice_master_audio_buffer = nullptr; // Master audio output buffer for the voice. DATA MUST BE COPIED TO THIS BUFFER
     SignalBuffer* voice_master_audio_buffer_src_ptr = nullptr; // Pointer to the source buffer that feeds into the master audio buffer
 
+    SignalBuffer* voice_effects_input_buffer = nullptr; // Input buffer for the effects chain
+    SignalBuffer* voice_effects_output_buffer = nullptr; // Output buffer for the effects chain
+
     int current_midi_note = 69; // Default to A4 (440 Hz) (lol)
 
     bool is_playing = false; // Denotes if this voice is currently active
     bool is_releasing = false; // Denotes if this voice is in the release phase
     bool should_retrigger = false; // Denotes if the voice should retrigger envelopes, etc
     unsigned int voice_age = 0; // Age of the voice in number of MIDI activations
+
+    float voice_detune_semitones = 0.0f; // Global detune for the voice, in semitones
 
     Context* m_context;
 

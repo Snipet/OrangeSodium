@@ -40,6 +40,7 @@ private:
     float sustain_level; // 0.0 to 1.0
     float release_time; // In seconds
     bool is_retriggered = false;
+    float release_level; // level at time of release
 
     float state = 0.0f;
 

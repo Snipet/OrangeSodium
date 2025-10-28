@@ -26,6 +26,7 @@ OrangeSodiumTestingPlaygroundAudioProcessor::OrangeSodiumTestingPlaygroundAudioP
 {
     synth = nullptr;
     synthLoaded = false;
+    synthsNeedSwapped = false;
     //initSynth();
 }
 
@@ -105,6 +106,8 @@ void OrangeSodiumTestingPlaygroundAudioProcessor::prepareToPlay (double sampleRa
         synthLoaded = true;
     }
     synth->prepare(2, samplesPerBlock, sampleRate);
+    lastSampleRate = sampleRate;
+    lastSamplesPerBlock = samplesPerBlock;
     //synth->setSampleRate(sampleRate);
 }
 
@@ -146,12 +149,16 @@ void OrangeSodiumTestingPlaygroundAudioProcessor::processBlock (juce::AudioBuffe
     auto totalNumInputChannels  = getTotalNumInputChannels();
     auto totalNumOutputChannels = getTotalNumOutputChannels();
 
-    // In case we have more outputs than inputs, this code clears any output
-    // channels that didn't contain input data, (because these aren't
-    // guaranteed to be empty - they may contain garbage).
-    // This is here to avoid people getting screaming feedback
-    // when they first compile a plugin, but obviously you don't need to keep
-    // this code if your algorithm always overwrites all the output channels.
+    if (synthsNeedSwapped) {
+        OrangeSodium::Synthesizer* tmp_synth = synth;
+        synth = swap_synth;
+        delete tmp_synth;
+        if (synth) {
+            synth->prepare(2, lastSamplesPerBlock, static_cast<float>(lastSampleRate));
+        }
+        synthsNeedSwapped = false;
+    }
+
     for (auto i = totalNumInputChannels; i < totalNumOutputChannels; ++i)
         buffer.clear (i, 0, buffer.getNumSamples());
 
@@ -285,4 +292,17 @@ void OrangeSodiumTestingPlaygroundAudioProcessor::initSynth()
         juce::Logger::writeToLog("OrangeSodium: Exception while initializing synthesizer");
         //synth.reset();
     }
+}
+
+
+void OrangeSodiumTestingPlaygroundAudioProcessor::updateProgram(juce::String& program) {
+
+    swap_synth = OrangeSodium::createSynthesizerFromString(program.toStdString());
+    swap_synth->setLogStream(&logStream);
+    swap_synth->buildSynthFromProgram();
+    synthsNeedSwapped = true;
+}
+
+void OrangeSodiumTestingPlaygroundAudioProcessor::getLogText(juce::String& text) {
+    text = logStream.str();
 }

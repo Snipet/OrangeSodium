@@ -58,12 +58,21 @@ public:
     void getStateInformation (juce::MemoryBlock& destData) override;
     void setStateInformation (const void* data, int sizeInBytes) override;
 
+    void updateProgram(juce::String& program);
+    void getLogText(juce::String&);
+
 private:
     // Synth integration
     OrangeSodium::Synthesizer* synth;
+    OrangeSodium::Synthesizer* swap_synth;
+    bool synthsNeedSwapped;
     juce::File findDefaultScript() const;
     void initSynth();
     bool synthLoaded;
+    std::string loadedScript;
+    double lastSampleRate;
+    int lastSamplesPerBlock;
+    std::ostringstream logStream;
 
     //==============================================================================
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (OrangeSodiumTestingPlaygroundAudioProcessor)

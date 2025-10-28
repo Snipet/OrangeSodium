@@ -36,7 +36,7 @@ void SineOscillator::processBlock(SignalBuffer* audio_inputs, SignalBuffer* mod_
         }
 
         for (size_t i = 0; i < n_frames; ++i) {
-            const float pitch_hz = getHzFromMIDINote(pitch_buffer[i / pitch_buffer_divisions]);
+            const float pitch_hz = getHzFromMIDINote(pitch_buffer[i / pitch_buffer_divisions] + frequency_offset);
             const float pitch_norm = pitch_hz / (sample_rate);
             float phase_increment = 2.0f * static_cast<float>(M_PI) * pitch_norm;
             phase[c] += phase_increment;

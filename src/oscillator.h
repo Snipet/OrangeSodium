@@ -16,6 +16,11 @@ public:
         kAmplitude,
     };
 
+    enum class EOscillatorType{
+        kSine = 0,
+        kWaveform,
+    };
+
     Oscillator(Context* context, ObjectID id, size_t n_channels, float amplitude = 1.0f);
     virtual ~Oscillator() = default;
 
@@ -62,6 +67,9 @@ public:
         return modulation_source_names;
     }
 
+    float getFrequencyOffset() const { return frequency_offset; }
+    void setFrequencyOffset(float midi_note_offset) { frequency_offset = midi_note_offset; }
+
 protected:
     Context* m_context;
     ObjectID id; // Unique ID for this oscillator instance (used for modulation routing, etc)
@@ -71,6 +79,7 @@ protected:
     SignalBuffer* mod_buffer = nullptr;
     EObjectType object_type;
     float amplitude; // [0, 1] Amplitude of the oscillator output
+    float frequency_offset; // Frequency offset (in MIDI note numbers)
     
     // Names of modulation sources connected to this oscillator. This is used for linking modulation sources by name in Lua.
     std::vector<std::string> modulation_source_names;

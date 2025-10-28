@@ -3,6 +3,7 @@
 #include "constants.h"
 #include <iostream>
 #include "console_utility.h"
+#include <sstream>
 extern "C" {
 #include "lua/lua.h"
 #include "lua/lauxlib.h"
@@ -248,9 +249,6 @@ static int l_get_object_type(lua_State* L){
     switch(type){
         case EObjectType::kOscillator:
             lua_pushstring(L, "oscillator");
-            break;
-        case EObjectType::kFilter:
-            lua_pushstring(L, "filter");
             break;
         case EObjectType::kEffect:
             lua_pushstring(L, "effect");
@@ -527,6 +525,258 @@ static int l_add_modulation(lua_State* L){
     return 1;
 }
 
+static int l_set_oscillator_frequency_offset(lua_State* L) {
+    // Set frequency offset (in MIDI note numbers) for the specified oscillator
+    // Arguments: osc_id (int), midi_note_offset (float)
+    // Returns: none
+
+    if (lua_gettop(L) < 2 || !lua_isinteger(L, 1) || !lua_isnumber(L, 2)) {
+        return 0;
+    }
+    ObjectID osc_id = static_cast<ObjectID>(lua_tointeger(L, 1));
+    float midi_note_offset = static_cast<float>(lua_tonumber(L, 2));
+
+    // Get the template voice pointer from registry
+    lua_pushstring(L, "__template_voice");
+    lua_gettable(L, LUA_REGISTRYINDEX);
+    void* voice_ptr = lua_touserdata(L, -1);
+    lua_pop(L, 1);
+
+    if (!voice_ptr) {
+        return 0;
+    }
+
+    Voice* voice = static_cast<Voice*>(voice_ptr);
+    ErrorCode error = voice->setOscillatorFrequencyOffset(osc_id, midi_note_offset);
+    handle_error(L, error);
+
+    return 1;
+}
+
+static int l_create_sawtooth_waveform(lua_State* L) {
+    // Create a sawtooth waveform resource
+    // Arguments: none
+    // Returns: resource_id (int) or nil on failure
+
+    // Get the Program instance from registry
+    lua_pushstring(L, "__program_instance");
+    lua_gettable(L, LUA_REGISTRYINDEX);
+    void* program_ptr = lua_touserdata(L, -1);
+    lua_pop(L, 1);
+
+    if (!program_ptr) {
+        lua_pushnil(L);
+        return 1;
+    }
+
+    Program* program = static_cast<Program*>(program_ptr);
+    ResourceManager* resource_manager = program->getContext()->resource_manager;
+    if (!resource_manager) {
+        lua_pushnil(L);
+        return 1;
+    }
+
+    ResourceID resource_id = resource_manager->createSawtoothWaveform();
+    lua_pushinteger(L, resource_id);
+    return 1;
+}
+
+static int l_add_waveform_osc(lua_State* L){
+    // Add a waveform oscillator to the template voice
+    // Arguments:
+    //   1. n_channels (int) - REQUIRED: number of output channels
+    //   2. waveform_id (int) - REQUIRED: ResourceID of the waveform to use
+    //   3. amplitude (float) - OPTIONAL: oscillator amplitude (0.0-1.0, default 1.0)
+    //   4. buffer_id (int) - OPTIONAL: ObjectID for audio_buffer to route to
+    // Returns: oscillator_id (int) or nil on failure
+
+    // Argument 1: n_channels (REQUIRED)
+    if (lua_gettop(L) < 2) {
+        luaL_error(L, "add_waveform_osc: missing required arguments");
+        lua_pushnil(L);
+        return 1;
+    }
+
+    if (!lua_isinteger(L, 1)) {
+        luaL_error(L, "add_waveform_osc: argument 1 'n_channels' must be an integer");
+        lua_pushnil(L);
+        return 1;
+    }
+
+    size_t n_channels = static_cast<size_t>(lua_tointeger(L, 1));
+    if (n_channels < 1) {
+        luaL_error(L, "add_waveform_osc: 'n_channels' must be at least 1");
+        lua_pushnil(L);
+        return 1;
+    }
+
+    // Argument 2: waveform_id (REQUIRED)
+    if (!lua_isinteger(L, 2)) {
+        luaL_error(L, "add_waveform_osc: argument 2 'waveform_id' must be an integer");
+        lua_pushnil(L);
+        return 1;
+    }
+    ResourceID waveform_id = static_cast<ResourceID>(lua_tointeger(L, 2));
+
+    // Argument 3: amplitude (OPTIONAL, default 1.0)
+    float amplitude = 1.0f;
+    if (lua_gettop(L) >= 3) {
+        if (!lua_isnumber(L, 3)) {
+            luaL_error(L, "add_waveform_osc: argument 3 'amplitude' must be a number");
+            lua_pushnil(L);
+            return 1;
+        }
+        amplitude = static_cast<float>(lua_tonumber(L, 3));
+        if (amplitude < 0.0f || amplitude > 1.0f) {
+            luaL_error(L, "add_waveform_osc: 'amplitude' must be between 0.0 and 1.0");
+            lua_pushnil(L);
+            return 1;
+        }
+    }
+
+    // Argument 4: buffer_id (OPTIONAL)
+    ObjectID buffer_id = static_cast<ObjectID>(luaL_optinteger(L, 4, -1));
+
+    // Get the Program instance from registry
+    lua_pushstring(L, "__program_instance");
+    lua_gettable(L, LUA_REGISTRYINDEX);
+    void* program_ptr = lua_touserdata(L, -1);
+    lua_pop(L, 1);
+
+    if (!program_ptr) {
+        lua_pushnil(L);
+        return 1;
+    }
+
+    Program* program = static_cast<Program*>(program_ptr);
+    Voice* voice = program->getTemplateVoice();
+    if (!voice) {
+        lua_pushnil(L);
+        return 1;
+    }
+
+    ObjectID osc_id = voice->addWaveformOscillator(n_channels, waveform_id, amplitude);
+    // If a buffer ID was provided, assign it to the oscillator
+    if (buffer_id != static_cast<ObjectID>(-1)) {
+        voice->assignOscillatorAudioBuffer(osc_id, buffer_id);
+    }
+    lua_pushinteger(L, osc_id);
+    return 1;
+}
+
+static int l_configure_voice_effects_io(lua_State* L) {
+    // Configure the IO for voice effects
+    // Arguments: ObjectID of input buffer, ObjectID of output buffer
+    if (lua_gettop(L) < 2 ||
+        !lua_isinteger(L, 1) ||
+        !lua_isinteger(L, 2)) {
+        return 0;
+    }
+    ObjectID input_buffer_id = static_cast<ObjectID>(lua_tointeger(L, 1));
+    ObjectID output_buffer_id = static_cast<ObjectID>(lua_tointeger(L, 2));
+
+    // Get the template voice pointer from registry
+    lua_pushstring(L, "__template_voice");
+    lua_gettable(L, LUA_REGISTRYINDEX);
+    void* voice_ptr = lua_touserdata(L, -1);
+    lua_pop(L, 1);
+    if (!voice_ptr) {
+        return 0;
+    }
+    Voice* voice = static_cast<Voice*>(voice_ptr);
+    ErrorCode error = voice->configureVoiceEffectsIO(input_buffer_id, output_buffer_id);
+    handle_error(L, error);
+    return 1;
+}
+
+static int l_add_voice_effect_filter(lua_State* l){
+    // Add a filter effect to the template voice's voice effects chain
+    // Arguments: filter type (string), number of channels (int), cutoff (float), resonance (float)
+    // Returns ObjectID of the filter effect or nil on failure
+    if(lua_gettop(l) < 4 ||
+       !lua_isstring(l, 1) ||
+       !lua_isnumber(l, 2) ||
+       !lua_isnumber(l, 3) ||
+       !lua_isnumber(l, 4)){
+        lua_pushnil(l);
+        return 1;
+    }
+    std::string filter_type = lua_tostring(l, 1);
+    int n_channels = static_cast<int>(lua_tointeger(l, 2));
+    float cutoff = static_cast<float>(lua_tonumber(l, 3));
+    float resonance = static_cast<float>(lua_tonumber(l, 4));
+
+    // Get the template voice pointer from registry
+    lua_pushstring(l, "__template_voice");
+    lua_gettable(l, LUA_REGISTRYINDEX);
+    void* voice_ptr = lua_touserdata(l, -1);
+    lua_pop(l, 1);
+    if (!voice_ptr) {
+        lua_pushnil(l);
+        return 1;
+    }
+    Voice* voice = static_cast<Voice*>(voice_ptr);
+    ObjectID filter_id = voice->addEffectFilter(filter_type, n_channels, cutoff, resonance);
+    if(filter_id == static_cast<ObjectID>(-1)){
+        lua_pushnil(l);
+    } else {
+        lua_pushinteger(l, filter_id);
+    }
+    return 1;
+}
+
+static int l_set_voice_rand_detune(lua_State* L) {
+    // Set the voice's random detune
+    // Arguments: detune in semitones (float)
+    // Returns: none
+    if (lua_gettop(L) < 1 || !lua_isnumber(L, 1)) {
+        return 0;
+    }
+    float detune_semitones = static_cast<float>(lua_tonumber(L, 1));
+    // Get the template voice pointer from registry
+    lua_pushstring(L, "__template_voice");
+    lua_gettable(L, LUA_REGISTRYINDEX);
+    void* voice_ptr = lua_touserdata(L, -1);
+    lua_pop(L, 1);
+    if (!voice_ptr) {
+        return 0;
+    }
+    Voice* voice = static_cast<Voice*>(voice_ptr);
+    voice->setRandomDetune(detune_semitones);
+    return 1;
+}
+
+static int l_cpp_print(lua_State* L) {
+    // Override Lua's print function to print to context's log stream
+    int n = lua_gettop(L);  // Number of arguments
+
+    // Get ostream from Program instance
+    lua_pushstring(L, "__program_instance");
+    lua_gettable(L, LUA_REGISTRYINDEX);
+    void* program_ptr = lua_touserdata(L, -1);
+    lua_pop(L, 1);
+    if (!program_ptr) {
+        return 0;
+    }
+    Program* program = static_cast<Program*>(program_ptr);
+    std::ostringstream ss;
+
+    for (int i = 1; i <= n; ++i) {
+        const char* s = lua_tostring(L, i);
+        if (s)
+            ss << s;
+        else if (lua_isnil(L, i))
+            ss << "nil";
+        else if (lua_isboolean(L, i))
+            ss << (lua_toboolean(L, i) ? "true" : "false");
+        else
+            ss << luaL_tolstring(L, i, nullptr), lua_pop(L, 1);
+        if (i < n) ss << "\t";
+    }
+    *(program->getContext()->log_stream) << ss.str() << std::endl;
+    return 0;
+}
+
 //==========================================================================
 
 Program::Program(Context* context) : context(context), program_path(""), program_name("") {
@@ -541,6 +791,8 @@ Program::Program(Context* context) : context(context), program_path(""), program
     lua_pushstring(getLuaState(L), "__program_instance");
     lua_pushlightuserdata(getLuaState(L), this);
     lua_settable(getLuaState(L), LUA_REGISTRYINDEX);
+
+    luaL_openlibs(getLuaState(L));
 
     // Register Lua functions
     lua_register(getLuaState(L), "get_osodium_version", l_get_osodium_version);
@@ -557,6 +809,16 @@ Program::Program(Context* context) : context(context), program_path(""), program
     lua_register(getLuaState(L), "set_voice_output", l_connect_voice_master_audio_buffer_to_source);
     lua_register(getLuaState(L), "add_basic_envelope", l_add_basic_envelope);
     lua_register(getLuaState(L), "add_modulation", l_add_modulation);
+    lua_register(getLuaState(L), "set_oscillator_frequency_offset", l_set_oscillator_frequency_offset);
+    lua_register(getLuaState(L), "create_sawtooth_waveform", l_create_sawtooth_waveform);
+    lua_register(getLuaState(L), "add_waveform_osc", l_add_waveform_osc);
+    lua_register(getLuaState(L), "configure_voice_effects_io", l_configure_voice_effects_io);
+    lua_register(getLuaState(L), "add_voice_effect_filter", l_add_voice_effect_filter);
+    lua_register(getLuaState(L), "set_voice_rand_detune", l_set_voice_rand_detune);
+
+    // Override Lua print function
+    lua_pushcfunction(getLuaState(L), l_cpp_print);
+    lua_setglobal(getLuaState(L), "print");
 
 }
 
@@ -587,13 +849,17 @@ bool Program::loadFromFile(const std::string& path) {
     return true;
 }
 
+bool Program::loadFromString(const std::string& program_data_str) {
+    program_data = program_data_str;
+    return true;
+}
+
 bool Program::execute() {
     if (!L) {
         return false;
     }
-    luaL_openlibs(getLuaState(L));
     if (luaL_dostring(getLuaState(L), program_data.c_str()) != LUA_OK) {
-        std::cerr << "[Program] Lua error: " << lua_tostring(getLuaState(L), -1) << std::endl;
+        *context->log_stream << "[Program] Lua error: " << lua_tostring(getLuaState(L), -1) << std::endl;
         lua_close(getLuaState(L));
         return false;
     }
@@ -603,6 +869,25 @@ bool Program::execute() {
 void Program::throwProgramError(ErrorCode code) {
     // Throw a program error with the given ErrorCode
     std::string message = OSGetErrorMessage(code);
-    ConsoleUtility::logRed("[Program Error] " + message);
+    ConsoleUtility::logRed(context->log_stream, "[Program Error] " + message);
 }
+
+Voice* Program::buildVoice() {
+    Voice* voice = new Voice(context);
+    setTemplateVoice(voice);
+
+    // Call Lua function build_voice() if it exists
+    lua_getglobal(getLuaState(L), "build_voice");
+    if (lua_isfunction(getLuaState(L), -1)) {
+        if (lua_pcall(getLuaState(L), 0, 0, 0) != LUA_OK) {
+            *context->log_stream << "[Program] Lua error in build_voice: " << lua_tostring(getLuaState(L), -1) << std::endl;
+            lua_pop(getLuaState(L), 1); // Pop error message
+        }
+    } else {
+        lua_pop(getLuaState(L), 1); // Pop non-function
+    }
+    voice->connectVoiceEffects();
+    return voice;
+}
+
 } // namespace OrangeSodium

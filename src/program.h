@@ -14,6 +14,7 @@ public:
     ~Program();
 
     bool loadFromFile(const std::string& path);
+    bool loadFromString(const std::string& program_data);
     std::string getProgramPath() const { return program_path; }
     std::string getProgramName() const { return program_name; }
     Context* getContext() const { return context; }
@@ -29,6 +30,12 @@ public:
     }
 
     void throwProgramError(ErrorCode code);
+
+    Voice* buildVoice();
+
+    std::ostream* getLogStream() const {
+        return context->log_stream;
+    }
 
 private:
     std::string program_path;

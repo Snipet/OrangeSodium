@@ -7,3 +7,6 @@
 [submodule "third_party/json"]
 	path = third_party/json
 	url = https://github.com/Snipet/json.git
+[submodule "third_party/hiir"]
+	path = third_party/hiir
+	url = https://github.com/Snipet/hiir.git

@@ -1,11 +1,17 @@
 #include "voice.h"
 #include "oscillators/sine_osc.h"
+#include "oscillators/waveform_osc.h"
+#include "effects/effect_filter.h"
 
 namespace OrangeSodium{
 
 Voice::Voice(Context* context) : m_context(context)
 {
     voice_master_audio_buffer = new SignalBuffer(SignalBuffer::EType::kAudio, context->max_n_frames, 2); // Default to stereo
+    is_playing = false;
+    is_releasing = false;
+    voice_age = 0;
+    voice_detune_semitones = 0.0f;
 }
 
 Voice::~Voice()
@@ -14,10 +20,17 @@ Voice::~Voice()
     for (auto* osc : oscillators) {
         delete osc;
     }
-    // Clean up filters
-    for (auto* filter : filters) {
-        delete filter;
+
+    // Clean up modulation producers
+    for (auto* mod_prod : modulation_producers) {
+        delete mod_prod;
     }
+
+    // Clean up effects
+    for (auto* eff : effects) {
+        delete eff;
+    }
+
     // Clean up buffers
     for (auto* buffer : audio_buffers) {
         delete buffer;
@@ -38,6 +51,43 @@ ObjectID Voice::addSineOscillator(size_t n_channels, float amplitude) {
     osc->setModBuffer(mod_buffer);
     oscillators.push_back(osc);
     oscillator_ids.push_back(id);
+    return id;
+}
+
+ObjectID Voice::addWaveformOscillator(size_t n_channels, ResourceID waveform_id, float amplitude) {
+    ObjectID id = m_context->getNextObjectID();
+    WaveformOscillator* osc = new WaveformOscillator(m_context, id, waveform_id, n_channels, amplitude);
+    SignalBuffer* mod_buffer = new SignalBuffer(SignalBuffer::EType::kMod, m_context->max_n_frames, 2); // Waveform oscillator uses 2 mod channels (pitch, amplitude)
+    //mod_buffer->setId(m_context->getNextObjectID());
+    mod_buffer->setChannelDivision(0, 1); // Pitch channel at full sample rate
+    mod_buffer->setChannelDivision(1, 1); // Amplitude channel at full sample rate
+    mod_buffers.push_back(mod_buffer);
+    osc->setModBuffer(mod_buffer);
+    oscillators.push_back(osc);
+    oscillator_ids.push_back(id);
+    return id;
+}
+
+ObjectID Voice::addEffectFilter(const std::string& filter_object_type, size_t n_channels, float frequency, float resonance) {
+    ObjectID id = m_context->getNextObjectID();
+    Filter::EFilterObjects filter_type = Filter::getFilterObjectTypeFromString(filter_object_type);
+    FilterEffect* effect = new FilterEffect(m_context, id, n_channels, filter_type);
+    effect->getFilter()->setCutoff(frequency);
+    effect->getFilter()->setResonance(resonance);
+
+    // We only need to create the output bufer and modulation buffer; the input buffer will be automatically connected
+    SignalBuffer* mod_buffer = new SignalBuffer(SignalBuffer::EType::kMod, m_context->max_n_frames, MAX_FILTER_MOD_PARAMETERS);
+    SignalBuffer* output_buffer = new SignalBuffer(SignalBuffer::EType::kAudio, m_context->max_n_frames, n_channels);
+
+    // Set modulation buffer divisions
+    mod_buffer->setChannelDivision(0, 1); // Cutoff channel at full sample rate
+    mod_buffer->setChannelDivision(1, 1); // Resonance channel at full sample rate
+    mod_buffer->setConstantValue(0, 0.f); // Default no modulation
+    mod_buffer->setConstantValue(1, 0.f); // Default no modulation
+    effect->setModulationBuffer(mod_buffer);
+    effect->setOutputBuffer(output_buffer);
+    effects.push_back(effect);
+    effect_ids.push_back(id);
     return id;
 }
 
@@ -75,11 +125,11 @@ EObjectType Voice::getObjectType(ObjectID id) {
             return EObjectType::kOscillator;
         }
     }
-    // Check filters
-    for (const auto& filter_id : filter_ids) {
-        // Assuming Filter class has an 'id' member similar to Oscillator
-        if (filter_id == id) {
-            return EObjectType::kFilter;
+
+    // Check effects
+    for (const auto& eff : effects) {
+        if (eff->getId() == id) {
+            return EObjectType::kEffect;
         }
     }
     
@@ -111,6 +161,31 @@ void Voice::resizeBuffers(size_t n_frames) {
     // Resize modulation producer buffers
     for (auto* mod_prod : modulation_producers) {
         mod_prod->resizeBuffers(n_frames);
+    }
+
+    // Resize effect buffers
+    for (auto* eff : effects) {
+        SignalBuffer* input_buffer = eff->getInputBuffer();
+        SignalBuffer* output_buffer = eff->getOutputBuffer();
+        SignalBuffer* mod_buffer = eff->getModulationBuffer();
+
+        if (input_buffer) {
+            for (size_t ch = 0; ch < input_buffer->getNumChannels(); ++ch) {
+                input_buffer->setChannel(ch, n_frames, 1, input_buffer->getBufferId(ch));
+            }
+        }
+
+        if (output_buffer) {
+            for (size_t ch = 0; ch < output_buffer->getNumChannels(); ++ch) {
+                output_buffer->setChannel(ch, n_frames, 1, output_buffer->getBufferId(ch));
+            }
+        }
+
+        if (mod_buffer) {
+            for (size_t ch = 0; ch < mod_buffer->getNumChannels(); ++ch) {
+                mod_buffer->setChannel(ch, n_frames, mod_buffer->getChannelDivision(ch), mod_buffer->getBufferId(ch));
+            }
+        }
     }
 }
 
@@ -164,6 +239,34 @@ ErrorCode Voice::connectMasterAudioBufferToSource(ObjectID buffer_id) {
     return ErrorCode::kAudioBufferNotFound;
 }
 
+ErrorCode Voice::configureVoiceEffectsIO(ObjectID input_buffer_id, ObjectID output_buffer_id) {
+    // Find input buffer
+    voice_effects_input_buffer = nullptr;
+    voice_effects_output_buffer = nullptr;
+    for (auto* buffer : audio_buffers) {
+        if (buffer->getId() == input_buffer_id) {
+            voice_effects_input_buffer = buffer;
+            break;
+        }
+    }
+    if (!voice_effects_input_buffer) {
+        return ErrorCode::kAudioBufferNotFound;
+    }
+
+    // Find output buffer
+    for (auto* buffer : audio_buffers) {
+        if (buffer->getId() == output_buffer_id) {
+            voice_effects_output_buffer = buffer;
+            break;
+        }
+    }
+    if (!voice_effects_output_buffer) {
+        return ErrorCode::kAudioBufferNotFound;
+    }
+
+    return ErrorCode::kNoError;
+}
+
 ErrorCode Voice::addModulation(ObjectID source_id, std::string source_param, ObjectID target_id, std::string target_param, float amount, bool is_centered) {
     // Find the modulation source
     ModulationProducer* source_ptr = nullptr;
@@ -198,7 +301,6 @@ ErrorCode Voice::addModulation(ObjectID source_id, std::string source_param, Obj
         return ErrorCode::kModulationDestinationNotFound;
     }
     
-    // FOR NOW, only support modulation to oscillators
     if (dest_type == EObjectType::kOscillator){
         // Find the oscillator with the target_id
         Oscillator* target_osc = nullptr;
@@ -238,6 +340,45 @@ ErrorCode Voice::addModulation(ObjectID source_id, std::string source_param, Obj
         mod->dest_index = dest_index;
         mod->dest_type = dest_type;
         modulations.push_back(mod);
+    } else if (dest_type == EObjectType::kEffect) {
+        // Find the effect with the target_id
+        Effect* target_eff = nullptr;
+        for (size_t i = 0; i < effects.size(); ++i) {
+            if (effect_ids[i] == target_id) {
+                target_eff = effects[i];
+                break;
+            }
+        }
+
+        if (!target_eff) {
+            return ErrorCode::kModulationDestinationNotFound;
+        }
+
+        // We now have the target effect. Now we need to find the index of the target modulation channel
+        size_t dest_index = 0;
+        bool found_param = false;
+        std::vector<std::string>& mod_source_names = target_eff->getModulationSourceNames();
+        for(size_t i = 0; i < mod_source_names.size(); ++i){
+            if(mod_source_names[i] == target_param){
+                dest_index = i;
+                found_param = true;
+                break;
+            }
+        }
+
+        if(!found_param){
+            return ErrorCode::kModulationDestinationParamNotFound;
+        }
+
+        // We now have the source and destination pointers, and we have the destination index
+        Modulation* mod = new Modulation();
+        mod->modulation_source = source_ptr;
+        mod->modulation_destination = target_eff;
+        mod->amount = amount;
+        mod->source_index = source_index;
+        mod->dest_index = dest_index;
+        mod->dest_type = dest_type;
+        modulations.push_back(mod);
     }
     return ErrorCode::kNoError;
 }
@@ -269,8 +410,16 @@ void Voice::processVoice(size_t n_audio_frames) {
     for(auto* osc : oscillators){
         SignalBuffer* mod_buffer = osc->getModBuffer();
         if(mod_buffer){
-            mod_buffer->setConstantValue(static_cast<size_t>(Oscillator::EModChannel::kPitch), pitch);
+            mod_buffer->setConstantValue(static_cast<size_t>(Oscillator::EModChannel::kPitch), pitch + voice_detune_semitones);
             mod_buffer->setConstantValue(static_cast<size_t>(Oscillator::EModChannel::kAmplitude), 0.f);
+        }
+    }
+
+    // Zero out modulation buffers for effects
+    for(auto* eff : effects){
+        SignalBuffer* mod_buffer = eff->getModulationBuffer();
+        if(mod_buffer){
+            mod_buffer->zeroOut();
         }
     }
 
@@ -297,12 +446,35 @@ void Voice::processVoice(size_t n_audio_frames) {
                     dest_channel[dest_idx] += mod->amount * source_channel[source_idx];
                 }
             }
+        }else if (mod->dest_type == EObjectType::kEffect){
+            Effect* dest = static_cast<Effect*>(mod->modulation_destination);
+            if(!dest) continue;
+            SignalBuffer* source_buffer = source->getOutputBuffer();
+            SignalBuffer* dest_buffer = dest->getModulationBuffer();
+            if(!source_buffer || !dest_buffer) continue;
+            float* source_channel = source_buffer->getChannel(mod->source_index);
+            float* dest_channel = dest_buffer->getChannel(mod->dest_index);
+            if(!source_channel || !dest_channel) continue;
+            const size_t source_division = source_buffer->getChannelDivision(mod->source_index);
+            const size_t dest_division = dest_buffer->getChannelDivision(mod->dest_index);
+            // Apply modulation
+            for(size_t i = 0; i < n_audio_frames; ++i){
+                size_t source_idx = i / source_division;
+                size_t dest_idx = i / dest_division;
+                if(source_idx < n_audio_frames && dest_idx < n_audio_frames){
+                    dest_channel[dest_idx] += mod->amount * source_channel[source_idx];
+                }
+            }
         }
     }
 
     // Process oscillators
     for(auto* osc : oscillators){
         osc->processBlock(nullptr, osc->getModBuffer(), osc->getOutputBuffer(), n_audio_frames); // For now, no inputs
+    }
+
+    for(auto* eff : effects){
+        eff->processBlock(eff->getInputBuffer(), eff->getModulationBuffer(), eff->getOutputBuffer(), n_audio_frames);
     }
 
     // Copy data from source buffer to master audio buffer
@@ -339,6 +511,18 @@ void Voice::processVoice(size_t n_audio_frames) {
     }
 }
 
+ErrorCode Voice::setOscillatorFrequencyOffset(ObjectID osc_id, float midi_note_offset) {
+    // Find the oscillator
+    for (size_t i = 0; i < oscillators.size(); ++i) {
+        if (oscillator_ids[i] == osc_id) {
+            // Set the frequency offset
+            oscillators[i]->setFrequencyOffset(midi_note_offset);
+            return ErrorCode::kNoError;
+        }
+    }
+    return ErrorCode::kModulationDestinationNotFound;
+}
+
 void Voice::deactivate() {
     is_releasing = true;
     should_retrigger = false;
@@ -356,6 +540,30 @@ void Voice::setSampleRate(float sample_rate) {
     for (auto* mod_prod : modulation_producers) {
         mod_prod->onSampleRateChange(sample_rate);
     }
+    for (auto* eff : effects) {
+        eff->setSampleRate(sample_rate);
+    }
 }
+
+
+void Voice::connectVoiceEffects(){
+    for(size_t i = 0; i < effects.size(); ++i) {
+        Effect* effect = effects[i];
+        if(i == 0) {
+            // First effect needs connected to voice_effects_input_buffer
+            effect->setInputBuffer(voice_effects_input_buffer);
+        }else {
+            // Connect to previous effect's output
+            effect->setInputBuffer(effects[i - 1]->getOutputBuffer());
+        }
+    }
+
+    // Connect last effect to voice_effects_output_buffer
+    if(!effects.empty()) {
+        effects.back()->setOutputBuffer(voice_effects_output_buffer);
+    }
+}
+
+
 
 }

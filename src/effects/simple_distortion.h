@@ -8,30 +8,18 @@ namespace OrangeSodium {
 
 class SimpleDistortion : public Effect {
 public:
-    SimpleDistortion(Context* context);
+    SimpleDistortion(Context* context, ObjectID id, size_t n_channels);
 
-    void processBlock(SignalBuffer* audio_inputs, SignalBuffer* mod_inputs, SignalBuffer* outputs) override;
-    void onSampleRateChange(float new_sample_rate) override;
-    void onModulationArchitectureChange(SignalBuffer* mod_inputs) override;
-
-
-    inline static const std::map<std::string, size_t> param_map = {
-        {"drive", 0},
-        {"mix", 1},
-        {"output_gain", 2}
-    };
+    void processBlock(SignalBuffer* audio_inputs, SignalBuffer* mod_inputs, SignalBuffer* outputs, size_t n_audio_frames) override;
+    void onSampleRateChange(float new_sample_rate) override {sample_rate = new_sample_rate; }
+    void setDrive(float d) { drive = d; }
+    void setMix(float m) { mix = m; }
+    void setOutputGain(float g) { output_gain = g; }
 
 private:
-    float param_drive = 1.0; // Drive amount
-    float param_mix = 0.5;  // Dry/Wet mix
-    float param_output_gain = 1.0; // Output gain
-
-    // Internal implementation variables; These are calculated from param variables and modulators
-    float impl_drive;
-    float impl_mix;
-    float impl_output_gain;
-
-    std::unique_ptr<ModulationRouter> mod_router;
+    float drive; // Distortion drive amount
+    float mix;   // Dry/Wet mix
+    float output_gain; // Output gain
 };
 
 }

@@ -4,3 +4,5 @@ bin/
 .claude/
 Builds/
 JuceLibraryCode/
+configure.bat
+OrangeSodiumTestingPlayground/
