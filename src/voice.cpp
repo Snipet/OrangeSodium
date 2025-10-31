@@ -53,8 +53,8 @@ ObjectID Voice::addSineOscillator(size_t n_channels, float amplitude) {
     SineOscillator* osc = new SineOscillator(m_context, id, n_channels, amplitude);
     SignalBuffer* mod_buffer = new SignalBuffer(SignalBuffer::EType::kMod, m_context->max_n_frames, 2); // Sine oscillator uses 2 mod channels (pitch, amplitude)
     //mod_buffer->setId(m_context->getNextObjectID());
-    mod_buffer->setChannelDivision(0, m_context->oversampling); // Pitch channel at audio rate
-    mod_buffer->setChannelDivision(1, m_context->oversampling); // Amplitude channel at audio rate
+    mod_buffer->setChannelDivision(0, 1); // Pitch channel at audio rate
+    mod_buffer->setChannelDivision(1, 1); // Amplitude channel at audio rate
     osc->setModBuffer(mod_buffer);
     oscillators.push_back(osc);
     oscillator_ids.push_back(id);
@@ -67,7 +67,7 @@ ObjectID Voice::addWaveformOscillator(size_t n_channels, ResourceID waveform_id,
     SignalBuffer* mod_buffer = new SignalBuffer(SignalBuffer::EType::kMod, m_context->max_n_frames, 2); // Waveform oscillator uses 2 mod channels (pitch, amplitude)
     //mod_buffer->setId(m_context->getNextObjectID());
     mod_buffer->setChannelDivision(0, 1); // Pitch channel at audio rate
-    mod_buffer->setChannelDivision(1, m_context->oversampling); // Amplitude channel at audio rate
+    mod_buffer->setChannelDivision(1, 1); // Amplitude channel at audio rate
     osc->setModBuffer(mod_buffer);
     oscillators.push_back(osc);
     oscillator_ids.push_back(id);
@@ -368,11 +368,6 @@ EffectChainIndex Voice::addEffectChain(size_t n_channels, ObjectID input_buffer_
 
 void Voice::processVoice(size_t n_audio_frames) {
     // Zero out the audio buffers
-    for(auto* buffer : audio_buffers){
-        if(buffer->getType() == SignalBuffer::EType::kAudio){
-            buffer->zeroOut();
-        }
-    }
 
     // Zero out the master audio buffer
     // if(voice_master_audio_buffer){
@@ -388,7 +383,7 @@ void Voice::processVoice(size_t n_audio_frames) {
 
     // Process modulation producers
     for(auto* mod_prod : modulation_producers){
-        mod_prod->processBlock(mod_prod->getModBuffer(), mod_prod->getOutputBuffer());
+        mod_prod->processBlock(mod_prod->getModBuffer(), mod_prod->getOutputBuffer(), n_audio_frames);
     }
 
 
@@ -398,25 +393,20 @@ void Voice::processVoice(size_t n_audio_frames) {
     for(auto* osc : oscillators){
         SignalBuffer* mod_buffer = osc->getModBuffer();
         if(mod_buffer){
-            if(portamento_time > 0.f){
+            if(true){ // Temporary until I implement no glide with frame offset
                 float* pitch_channel = mod_buffer->getChannel(static_cast<size_t>(Oscillator::EModChannel::kPitch));
                 if(pitch_channel){
                     for(size_t f = 0; f < n_audio_frames; ++f){
                         calculatePortamentoCoefficient();
                         current_note += (pitch - current_note) * portamento_g;
-                        pitch_channel[f] = current_note + voice_detune_semitones;
+                        pitch_channel[f + frame_offset] = current_note + voice_detune_semitones;
                     }
                 }
             }else {
-                mod_buffer->setConstantValue(static_cast<size_t>(Oscillator::EModChannel::kPitch), pitch + voice_detune_semitones);
+                mod_buffer->setConstantValue(static_cast<size_t>(Oscillator::EModChannel::kPitch), pitch + voice_detune_semitones, frame_offset);
             }
-            mod_buffer->setConstantValue(static_cast<size_t>(Oscillator::EModChannel::kAmplitude), 0.f);
+            mod_buffer->setConstantValue(static_cast<size_t>(Oscillator::EModChannel::kAmplitude), 0.f, frame_offset);
         }
-    }
-
-    // Zero out modulation buffers for effects in effect chains
-    for(auto* effect_chain : effect_chains){
-        effect_chain->zeroOutModulationBuffers();
     }
 
     // Apply modulations
@@ -435,7 +425,7 @@ void Voice::processVoice(size_t n_audio_frames) {
             const size_t source_division = source_buffer->getChannelDivision(mod->source_index);
             const size_t dest_division = dest_buffer->getChannelDivision(mod->dest_index);
             // Apply modulation
-            for(size_t i = 0; i < n_audio_frames; ++i){
+            for(size_t i = frame_offset; i < n_audio_frames; ++i){
                 size_t source_idx = i / source_division;
                 size_t dest_idx = i / dest_division;
                 if(source_idx < n_audio_frames && dest_idx < n_audio_frames){
@@ -461,7 +451,7 @@ void Voice::processVoice(size_t n_audio_frames) {
             for(size_t i = 0; i < n_audio_frames / dest_division; ++i){
                 size_t source_idx = i / source_division;
                 if(source_idx < n_audio_frames){
-                    dest_channel[i] += mod->amount * source_channel[source_idx];
+                    dest_channel[i + frame_offset / dest_division] += mod->amount * source_channel[source_idx + frame_offset / source_division];
                 }
             }
         }
@@ -512,7 +502,7 @@ void Voice::processVoice(size_t n_audio_frames) {
             }
 
             for (size_t f = 0; f < n_audio_frames; ++f) {
-                dest_channel[f] += src_channel[f];
+                dest_channel[f + frame_offset] += src_channel[f + frame_offset];
             }
         }
     }
@@ -524,7 +514,7 @@ void Voice::processVoice(size_t n_audio_frames) {
             for(size_t c = 0; c < buffer->getNumChannels(); ++c){
                 float* channel = buffer->getChannel(c);
                 for(size_t f = 0; f < n_audio_frames; ++f){
-                    if(std::abs(channel[f]) > 0.0001f){
+                    if(std::abs(channel[f + frame_offset]) > 0.0001f){
                         silent = false;
                         break;
                     }
@@ -543,6 +533,7 @@ void Voice::processVoice(size_t n_audio_frames) {
             is_releasing = false;
         }
     }
+    frame_offset += n_audio_frames;
 }
 
 ErrorCode Voice::setOscillatorFrequencyOffset(ObjectID osc_id, float midi_note_offset) {
@@ -610,6 +601,32 @@ EffectChain* Voice::getEffectChainByIndex(EffectChainIndex index) {
     return nullptr; // Not found
 }
 
+void Voice::beginBlock() {
+    frame_offset = 0;
 
+    for (auto* mod_prod : modulation_producers) {
+        mod_prod->beginBlock();
+    }
+
+    for (auto* osc : oscillators) {
+        osc->beginBlock();
+    }
+
+    for (auto* effect_chain : effect_chains) {
+        effect_chain->beginBlock();
+    }
+
+    for(auto* buffer : audio_buffers){
+        if(buffer->getType() == SignalBuffer::EType::kAudio){
+            buffer->zeroOut();
+        }
+    }
+
+    // Zero out modulation buffers for effects in effect chains
+    for(auto* effect_chain : effect_chains){
+        effect_chain->zeroOutModulationBuffers();
+    }
+
+}
 
 }

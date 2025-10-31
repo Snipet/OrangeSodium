@@ -110,17 +110,7 @@ void Synthesizer::buildSynthFromProgram() {
     connectEffects();
 }
 
-void Synthesizer::processBlock(float** output_buffers, size_t n_channels, size_t n_frames, size_t offset) {
-    // Clear buffers
-    if(master_output_buffer) {
-        master_output_buffer->zeroOut();
-    }
-    for(auto* audio_buffer : audio_buffers) {
-        if(audio_buffer) {
-            audio_buffer->zeroOut();
-        }
-    }
-    
+void Synthesizer::processIntermediateBlock(size_t n_channels, size_t n_frames) {
     // Process at 2x sample rate (2x frames)
     size_t oversampled_frames = n_frames * m_context->oversampling;
     
@@ -135,26 +125,27 @@ void Synthesizer::processBlock(float** output_buffers, size_t n_channels, size_t
     // Process all effect chains
     for(auto* effect_chain : master_effect_chains) {
         if(effect_chain) {
-            // For now, just zero out modulation buffers
-            effect_chain->zeroOutModulationBuffers();
             effect_chain->processBlock(oversampled_frames);
         }
     }
 
     // For all audio buffers in audio_output_buffer_ptrs, we will combine them into oversampled_buffer
 
-    oversampled_buffer->zeroOut();
     for(auto* audio_buffer : audio_output_buffer_ptrs) {
         for(size_t c = 0; c < n_channels; ++c) {
             float* oversampled_data = oversampled_buffer->getChannel(c);
             float* audio_buf_data = audio_buffer->getChannel(c);
             if(oversampled_data && audio_buf_data) {
                 for(size_t f = 0; f < oversampled_frames; ++f) {
-                    oversampled_data[f] += audio_buf_data[f];
+                    oversampled_data[f + frame_offset] += audio_buf_data[f + frame_offset];
                 }
             }
         }
     }
+    frame_offset += oversampled_frames;
+}
+
+void Synthesizer::finishBlock(float** output_buffers, size_t n_channels, size_t n_frames) {
     
     // Downsample back to original sample rate
     for(size_t c = 0; c < n_channels; ++c) {
@@ -186,7 +177,7 @@ void Synthesizer::processBlock(float** output_buffers, size_t n_channels, size_t
         float* master_channel = master_output_buffer->getChannel(c);
         float* out_channel = output_buffers[c];
         if(master_channel && out_channel){
-            std::memcpy(out_channel + offset, master_channel, n_frames * sizeof(float));
+            std::memcpy(out_channel, master_channel, n_frames * sizeof(float));
         }
     }
 }
@@ -386,6 +377,36 @@ EffectChain* Synthesizer::getEffectChainByIndex(EffectChainIndex index) {
         }
     }
     return nullptr; // Not found
+}
+
+void Synthesizer::beginBlock() {
+    frame_offset = 0;
+
+    for (auto& voice : voices) {
+        voice->beginBlock();
+    }
+
+    oversampled_buffer->zeroOut();
+    for(auto* effect_chain : master_effect_chains) {
+        if(effect_chain) {
+            effect_chain->beginBlock();
+            effect_chain->zeroOutModulationBuffers();
+        }
+    }
+
+    // Clear buffers
+    if(master_output_buffer) {
+        master_output_buffer->zeroOut();
+    }
+    for(auto* audio_buffer : audio_buffers) {
+        if(audio_buffer) {
+            audio_buffer->zeroOut();
+        }
+    }
+
+
+    
+
 }
 
 } // namespace OrangeSodium

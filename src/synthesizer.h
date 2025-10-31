@@ -21,7 +21,8 @@ public:
     //void setSampleRate(float sample_rate) { m_context->sample_rate = sample_rate; }
     float getSampleRate() const { return static_cast<float>(m_context->sample_rate) * static_cast<float>(m_context->oversampling); }
 
-    void processBlock(float** output_buffers, size_t n_channels, size_t n_frames, size_t offset = 0);
+    void finishBlock(float** output_buffers, size_t n_channels, size_t n_frames);
+    void processIntermediateBlock(size_t n_channels, size_t n_frames);
     void prepare(size_t n_channels, size_t n_frames, float sample_rate);
     void processMidiEvent(int midi_note, bool note_on);
     void setLogStream(std::ostream* stream) {
@@ -37,6 +38,9 @@ public:
 
     EffectChain* getEffectChainByIndex(EffectChainIndex index);
 
+    void beginBlock();
+    size_t getFrameOffset() const { return frame_offset; }
+
 private:
     std::vector<std::unique_ptr<Voice>> voices;
     Context* m_context;
@@ -51,6 +55,9 @@ private:
     std::vector<EffectChain*> master_effect_chains;
 
     float master_amplitude;
+
+
+    size_t frame_offset; // To allow for per-sample MIDI events, we keep track of the current frame offset within the block being processed
 
 
     static constexpr int HIIR_COEFFS = 8; // or 12 for higher quality

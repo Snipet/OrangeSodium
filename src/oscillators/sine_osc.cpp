@@ -17,7 +17,10 @@ SineOscillator::SineOscillator(Context* context, ObjectID id, size_t n_channels,
     modulation_source_names.resize(0);
     modulation_source_names.push_back("pitch");
     modulation_source_names.push_back("amplitude");
+}
 
+SineOscillator::~SineOscillator() {
+    delete[] phase;
 }
 
 
@@ -42,9 +45,10 @@ void SineOscillator::processBlock(SignalBuffer* audio_inputs, SignalBuffer* mod_
             phase[c] += phase_increment;
             phase[c] = std::fmod(phase[c], 2.0f * static_cast<float>(M_PI));
             const float amp = amplitude + ((amplitude_buffer) ? amplitude_buffer[i / amplitude_buffer_divisions] : 0.0f);
-            out_buffer[i] += amp * std::sin(phase[c]);
+            out_buffer[i + frame_offset] += amp * std::sin(phase[c]);
         }
     }
+    frame_offset += n_frames;
 }
 
 void SineOscillator::onSampleRateChange(float new_sample_rate) {

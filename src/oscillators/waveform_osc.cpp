@@ -119,12 +119,13 @@ void WaveformOscillator::processBlock(SignalBuffer* audio_inputs, SignalBuffer* 
             phase[c] += phase_increment;
             phase[c] = std::fmod(phase[c], 1.f);
             const float amp = amplitude + ((amplitude_buffer) ? amplitude_buffer[i / amplitude_buffer_divisions] : 0.0f);
-            out_buffer[i] += amp * getSampleFromWaveform(phase[c]);
+            out_buffer[i + frame_offset] += amp * getSampleFromWaveform(phase[c]);
 
             fft_tick[c]++;
             last_pitch[c] = pitch_hz;
         }
     }
+    frame_offset += n_frames;
 }
 
 float WaveformOscillator::getSampleFromWaveform(float phase_position) {

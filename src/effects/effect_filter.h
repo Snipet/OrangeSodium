@@ -40,6 +40,13 @@ public:
         return filter;
     }
 
+    void beginBlock() override {
+        frame_offset = 0;
+        if (filter) {
+            filter->beginBlock();
+        }
+    }
+
 private:
     Filter* filter;
     Filter::EFilterObjects filter_object_type;

@@ -33,7 +33,7 @@ public:
     /// @param audio_inputs Audio input to be processed
     /// @param mod_inputs External modulation inputs; mod_inputs[0] is filter cutoff [0, 1]; mod_inputs[1] is resonance [0, 1]; everything else is implementation-specific
     /// @param outputs Audio output of filter
-    virtual void processBlock(SignalBuffer* audio_inputs, SignalBuffer* mod_inputs, SignalBuffer* outputs) = 0;
+    virtual void processBlock(SignalBuffer* audio_inputs, SignalBuffer* mod_inputs, SignalBuffer* outputs, size_t n_frames) = 0;
     virtual void onSampleRateChange(float new_sample_rate) = 0;
 
     /// @brief Get the current sample rate of the filter
@@ -59,6 +59,9 @@ public:
 
     static int getDefaultDivisions() { return 1; }
 
+    void beginBlock() { frame_offset = 0; }
+    size_t getFrameOffset() const { return frame_offset; }
+
 
 protected:
     Context* m_context; // Pointer to global context
@@ -70,6 +73,7 @@ protected:
     ObjectID id; // Unique ID for this filter instance (used for modulation routing, etc)
     size_t n_channels;
     std::vector<std::string> modulation_source_names;
+    size_t frame_offset; // To allow for per-sample MIDI events, we keep track of the current frame offset within the block being processed
 
     // Convert a "knob value" in the range [0, 1] to a frequency in Hz (e.g., for cutoff control)
     float knobValueToFrequency(float value){

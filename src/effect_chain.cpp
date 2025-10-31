@@ -1,5 +1,6 @@
 #include "effect_chain.h"
 #include "effects/effect_filter.h"
+#include "effects/effect_distortion.h"
 #include "json/include/nlohmann/json.hpp"
 
 using json = nlohmann::json;
@@ -49,6 +50,39 @@ ObjectID EffectChain::addEffectFilterJSON(const std::string& json_data) {
     return addEffectFilter(filter_object_type, frequency, resonance);
 }
 
+ObjectID EffectChain::addEffectDistortionJSON(const std::string& json_data) {
+    json j;
+    try {
+        j = json::parse(json_data);
+    } catch (json::parse_error& e) {
+        *(m_context->log_stream) << "Error parsing JSON data for SimpleDistortion: " << e.what() << std::endl;
+        return -1; // Indicate error
+    }
+
+    std::string distortion_type_str = j.value("type", "tanh");
+    float drive = j.value("drive", 1.0f);
+    float mix = j.value("mix", 1.0f);
+    float output_gain = j.value("output_gain", 1.0f);
+
+    ObjectID id = m_context->getNextObjectID();
+    DistortionEffect* effect = new DistortionEffect(m_context, id, n_channels);
+    effect->setDistortionType(DistortionEffect::getDistortionTypeFromString(distortion_type_str));
+    effect->setDrive(drive);
+    effect->setMix(mix);
+    effect->setOutputGain(output_gain);
+
+    // We only need to create the output bufer and modulation buffer; the input buffer will be automatically connected
+    SignalBuffer* mod_buffer = new SignalBuffer(SignalBuffer::EType::kMod, m_context->max_n_frames, DistortionEffect::getMaxModulationChannels());
+
+    SignalBuffer* output_buffer = new SignalBuffer(SignalBuffer::EType::kAudio, m_context->max_n_frames, n_channels);
+
+    effect->setModulationBuffer(mod_buffer);
+    effect->setOutputBuffer(output_buffer);
+    effects.push_back(effect);
+    effect_ids.push_back(id);
+    return id;
+}
+
 Effect* EffectChain::getEffectByIndex(size_t index) {
     //TODO: See how much this impacts performance
     if (index < effects.size()) {
@@ -64,6 +98,23 @@ void EffectChain::processBlock(size_t n_audio_frames) {
         SignalBuffer* output = effect->getOutputBuffer();
         effect->processBlock(audio_input, mod_input, output, n_audio_frames);
     }
+
+    if(effects.empty()) {
+        // Copy input buffer to output buffer directly
+        if(input_buffer && output_buffer) {
+            for(size_t ch = 0; ch < n_channels; ++ch) {
+                float* in_buf = input_buffer->getChannel(ch);
+                float* out_buf = output_buffer->getChannel(ch);
+                if(in_buf && out_buf) {
+                    for(size_t i = 0; i < n_audio_frames; ++i) {
+                        out_buf[i + frame_offset] = in_buf[i + frame_offset];
+                    }
+                }
+            }
+        }
+    }
+
+    frame_offset += n_audio_frames;
 }
 
 void EffectChain::setSampleRate(float sample_rate) {
@@ -146,6 +197,13 @@ void EffectChain::zeroOutModulationBuffers() {
 EffectChain::~EffectChain() {
     for (auto* effect : effects) {
         delete effect;
+    }
+}
+
+void EffectChain::beginBlock() {
+    frame_offset = 0;
+    for (auto* effect : effects) {
+        effect->beginBlock();
     }
 }
 

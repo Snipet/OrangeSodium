@@ -5,17 +5,26 @@
 #include "console_utility.h"
 #include <sstream>
 #include "synthesizer.h"
+#include "json/include/nlohmann/json.hpp"
 extern "C" {
 #include "lua/lua.h"
 #include "lua/lauxlib.h"
 #include "lua/lualib.h"
 }
 
+using json = nlohmann::json;
+
 namespace OrangeSodium {
 
 static lua_State* getLuaState(void* L_void) {
     return static_cast<lua_State*>(L_void);
 }
+
+// Forward declarations for table-to-JSON conversion
+void lua_value_to_json(lua_State* L, int index, json& j);
+void lua_table_to_json(lua_State* L, int index, json& j);
+void json_value_to_lua(lua_State* L, const json& j);
+void json_to_lua_table(lua_State* L, const json& j);
 
 // LUA BINDING FUNCTIONS ===================================================
 
@@ -931,6 +940,296 @@ static int l_add_effect_chain(lua_State* L) {
     return 1;
 }
 
+//------------------------------------------------------- LUA JSON FUNCTIONS
+
+// Convert a Lua table to a JSON object or array
+void lua_table_to_json(lua_State* L, int index, json& j) {
+    // Adjust index if negative (relative to top)
+    if (index < 0) {
+        index = lua_gettop(L) + index + 1;
+    }
+
+    // Check if the table is an array (all keys are consecutive integers starting from 1)
+    bool is_array = true;
+    lua_Integer expected_index = 1;
+    lua_Integer max_index = 0;
+
+    // First pass: check if it's an array
+    lua_pushnil(L);
+    while (lua_next(L, index) != 0) {
+        if (lua_isinteger(L, -2)) {
+            lua_Integer key = lua_tointeger(L, -2);
+            if (key > max_index) {
+                max_index = key;
+            }
+        } else {
+            is_array = false;
+        }
+        lua_pop(L, 1); // Pop value, keep key for next iteration
+    }
+
+    // Check for consecutive integers starting from 1
+    if (is_array && max_index > 0) {
+        lua_pushnil(L);
+        lua_Integer count = 0;
+        while (lua_next(L, index) != 0) {
+            count++;
+            lua_pop(L, 1);
+        }
+        if (count != max_index) {
+            is_array = false;
+        }
+    }
+
+    if (is_array && max_index > 0) {
+        // Create JSON array
+        j = json::array();
+        for (lua_Integer i = 1; i <= max_index; i++) {
+            lua_pushinteger(L, i);
+            lua_gettable(L, index);
+            json element;
+            lua_value_to_json(L, -1, element);
+            j.push_back(element);
+            lua_pop(L, 1);
+        }
+    } else {
+        // Create JSON object
+        j = json::object();
+        lua_pushnil(L);
+        while (lua_next(L, index) != 0) {
+            // Key is at -2, value is at -1
+            std::string key;
+            if (lua_isstring(L, -2)) {
+                key = lua_tostring(L, -2);
+            } else if (lua_isinteger(L, -2)) {
+                key = std::to_string(lua_tointeger(L, -2));
+            } else if (lua_isnumber(L, -2)) {
+                key = std::to_string(lua_tonumber(L, -2));
+            } else {
+                lua_pop(L, 1);
+                continue;
+            }
+
+            json value;
+            lua_value_to_json(L, -1, value);
+            j[key] = value;
+            lua_pop(L, 1); // Pop value, keep key for next iteration
+        }
+    }
+}
+
+
+// Helper function to convert a Lua value to a JSON value
+void lua_value_to_json(lua_State* L, int index, json& j) {
+    int type = lua_type(L, index);
+
+    switch (type) {
+        case LUA_TNIL:
+            j = nullptr;
+            break;
+        case LUA_TBOOLEAN:
+            j = static_cast<bool>(lua_toboolean(L, index));
+            break;
+        case LUA_TNUMBER:
+            if (lua_isinteger(L, index)) {
+                j = lua_tointeger(L, index);
+            } else {
+                j = lua_tonumber(L, index);
+            }
+            break;
+        case LUA_TSTRING:
+            j = lua_tostring(L, index);
+            break;
+        case LUA_TTABLE:
+            lua_table_to_json(L, index, j);
+            break;
+        default:
+            j = nullptr;
+            break;
+    }
+}
+
+// Helper function to convert a JSON value to a Lua value
+void json_value_to_lua(lua_State* L, const json& j) {
+    if (j.is_null()) {
+        lua_pushnil(L);
+    }
+    else if (j.is_boolean()) {
+        lua_pushboolean(L, j.get<bool>());
+    }
+    else if (j.is_number_integer()) {
+        lua_pushinteger(L, j.get<lua_Integer>());
+    }
+    else if (j.is_number_float()) {
+        lua_pushnumber(L, j.get<lua_Number>());
+    }
+    else if (j.is_string()) {
+        lua_pushstring(L, j.get<std::string>().c_str());
+    }
+    else if (j.is_array() || j.is_object()) {
+        json_to_lua_table(L, j);
+    }
+    else {
+        lua_pushnil(L);
+    }
+}
+
+// Convert a JSON object or array to a Lua table
+void json_to_lua_table(lua_State* L, const json& j) {
+    lua_newtable(L);
+    
+    if (j.is_array()) {
+        // Handle JSON array - use 1-based indexing for Lua
+        int index = 1;
+        for (const auto& element : j) {
+            lua_pushinteger(L, index++);
+            json_value_to_lua(L, element);
+            lua_settable(L, -3);
+        }
+    }
+    else if (j.is_object()) {
+        // Handle JSON object
+        for (auto it = j.begin(); it != j.end(); ++it) {
+            lua_pushstring(L, it.key().c_str());
+            json_value_to_lua(L, it.value());
+            lua_settable(L, -3);
+        }
+    }
+}
+
+// Main Lua-bound function
+// Takes a JSON string and returns a Lua table
+int lua_json_to_table(lua_State* L) {
+    // Check if we have exactly one argument
+    if (lua_gettop(L) != 1) {
+        lua_pushnil(L);
+        lua_pushstring(L, "Expected exactly one argument (JSON string)");
+        return 2;
+    }
+
+    // Check if the argument is a string
+    if (!lua_isstring(L, 1)) {
+        lua_pushnil(L);
+        lua_pushstring(L, "Argument must be a string");
+        return 2;
+    }
+
+    // Get the JSON string
+    const char* json_str = lua_tostring(L, 1);
+
+    try {
+        // Parse the JSON string
+        json j = json::parse(json_str);
+
+        // Convert to Lua table
+        json_to_lua_table(L, j);
+
+        return 1; // Return the table
+    }
+    catch (const json::parse_error& e) {
+        lua_pushnil(L);
+        lua_pushstring(L, ("JSON parse error: " + std::string(e.what())).c_str());
+        return 2;
+    }
+    catch (const std::exception& e) {
+        lua_pushnil(L);
+        lua_pushstring(L, ("Error: " + std::string(e.what())).c_str());
+        return 2;
+    }
+}
+// Main Lua-bound function
+// Takes a Lua table and returns a JSON string
+int lua_table_to_json(lua_State* L) {
+    // Check if we have exactly one argument
+    if (lua_gettop(L) != 1) {
+        lua_pushnil(L);
+        lua_pushstring(L, "Expected exactly one argument (Lua table)");
+        return 2;
+    }
+
+    // Check if the argument is a table
+    if (!lua_istable(L, 1)) {
+        lua_pushnil(L);
+        lua_pushstring(L, "Argument must be a table");
+        return 2;
+    }
+
+    try {
+        // Convert Lua table to JSON
+        json j;
+        lua_table_to_json(L, 1, j);
+
+        // Convert JSON to string
+        std::string json_str = j.dump();
+
+        // Push the JSON string to Lua
+        lua_pushstring(L, json_str.c_str());
+
+        return 1; // Return the JSON string
+    }
+    catch (const std::exception& e) {
+        lua_pushnil(L);
+        lua_pushstring(L, ("Error: " + std::string(e.what())).c_str());
+        return 2;
+    }
+}
+//------------------------------------------------------------
+
+static int l_add_effect_distortion(lua_State* L) {
+    // Add a distortion effect to the target effects chain
+    // Arguments:
+    //  Version 1 (Lua Table) : effect_chain_id (int), lua_table_params (table)
+    //  Version 2 (JSON String) : effect_chain_id (int), json_params (string)
+    // Returns ObjectID of the distortion effect or nil on failure
+    if(lua_gettop(L) < 2 || !lua_isinteger(L, 1)){
+        lua_pushnil(L);
+        return 1;
+    }
+    EffectChainIndex effect_chain_id = static_cast<EffectChainIndex>(lua_tointeger(L, 1));
+    ObjectID distortion_id = static_cast<ObjectID>(-1);
+
+    // Get program from registry
+    lua_pushstring(L, "__program_instance");
+    lua_gettable(L, LUA_REGISTRYINDEX);
+    void* program_ptr = lua_touserdata(L, -1);
+    lua_pop(L, 1);
+    if (!program_ptr) {
+        lua_pushnil(L);
+        return 1;
+    }
+
+    Program* program = static_cast<Program*>(program_ptr);
+    // Get the effect chain from the program
+    EffectChain* effect_chain = program->getEffectChainByIndex(effect_chain_id);
+    if (!effect_chain) {
+        lua_pushnil(L);
+        return 1;
+    }
+
+    // Check if second argument is a table
+    if (lua_istable(L, 2)) {
+        // Lua Table mode
+        json j;
+        lua_table_to_json(L, 2, j);
+        distortion_id = effect_chain->addEffectDistortionJSON(j.dump());
+    } 
+    else if (lua_isstring(L, 2)) {
+        // JSON String mode
+        std::string json_params = lua_tostring(L, 2);
+        distortion_id = effect_chain->addEffectDistortionJSON(json_params);
+    } 
+    else {
+        lua_pushnil(L);
+        return 1;
+    }
+    // Return the distortion ID
+    if(distortion_id == static_cast<ObjectID>(-1)){
+        lua_pushnil(L);
+    } else {
+        lua_pushinteger(L, distortion_id);
+    }
+}
+
 //==========================================================================
 
 Program::Program(Context* context, void* parent_synthesizer) : context(context), parent_synthesizer(parent_synthesizer), program_path(""), program_name("") {
@@ -973,6 +1272,8 @@ Program::Program(Context* context, void* parent_synthesizer) : context(context),
     lua_register(getLuaState(L), "add_buffer_to_master", l_add_audio_buffer_to_master);
     lua_register(getLuaState(L), "set_portamento", l_set_portamento);
     lua_register(getLuaState(L), "add_effect_chain", l_add_effect_chain);
+    lua_register(getLuaState(L), "json_to_table", lua_json_to_table);
+    lua_register(getLuaState(L), "table_to_json", lua_table_to_json);
 
     // Override Lua print function
     lua_pushcfunction(getLuaState(L), l_cpp_print);

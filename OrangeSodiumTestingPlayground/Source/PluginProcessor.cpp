@@ -187,27 +187,29 @@ void OrangeSodiumTestingPlaygroundAudioProcessor::processBlock (juce::AudioBuffe
     // Zero the buffer before rendering (synth writes fresh data)
     buffer.clear();
 
+    synth->beginBlock();
 
     // Handle MIDI
     int currentSample = 0;
-    int lastProcessSample = 0;
     int numSamples = buffer.getNumSamples();
     for (const auto metadata : midiMessages)
     {
         const auto& msg = metadata.getMessage();
-        int samplePosition = metadata.samplePosition;
+        int samplePosition = metadata.samplePosition % numSamples;
         if (samplePosition > currentSample) {
             // Process audio up to this MIDI event
-            synth->processBlock(outs, static_cast<size_t>(buffer.getNumChannels()), samplePosition - currentSample, currentSample);
-            //lastProcessSample = samplePosition;
+            synth->processIntermediateBlock(static_cast<size_t>(buffer.getNumChannels()), samplePosition - currentSample);
             currentSample = samplePosition;
         }
         handleMidiMessage(msg);
     }
 
     if (currentSample < numSamples) {
-        synth->processBlock(outs, static_cast<size_t>(buffer.getNumChannels()), numSamples - currentSample, currentSample);
+        synth->processIntermediateBlock(static_cast<size_t>(buffer.getNumChannels()), numSamples - currentSample);
     }
+    //synth->processIntermediateBlock(static_cast<size_t>(buffer.getNumChannels()), numSamples);
+    // Get output of synth
+    synth->finishBlock(outs, static_cast<size_t>(buffer.getNumChannels()), numSamples);
 
     //if (synth)
     //{

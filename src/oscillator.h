@@ -70,6 +70,14 @@ public:
     float getFrequencyOffset() const { return frequency_offset; }
     void setFrequencyOffset(float midi_note_offset) { frequency_offset = midi_note_offset; }
 
+    void beginBlock() {
+        frame_offset = 0;
+    }
+
+    size_t getFrameOffset() const {
+        return frame_offset;
+    }
+
 protected:
     Context* m_context;
     ObjectID id; // Unique ID for this oscillator instance (used for modulation routing, etc)
@@ -80,6 +88,8 @@ protected:
     EObjectType object_type;
     float amplitude; // [0, 1] Amplitude of the oscillator output
     float frequency_offset; // Frequency offset (in MIDI note numbers)
+
+    size_t frame_offset; // To allow for per-sample MIDI events, we keep track of the current frame offset within the block being processed
     
     // Names of modulation sources connected to this oscillator. This is used for linking modulation sources by name in Lua.
     std::vector<std::string> modulation_source_names;

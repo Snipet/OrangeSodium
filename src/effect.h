@@ -67,6 +67,14 @@ public:
         return modulation_source_names;
     }
 
+    virtual void beginBlock() {
+        frame_offset = 0;
+    }
+
+    size_t getFrameOffset() const {
+        return frame_offset;
+    }
+
 protected:
     Context* m_context;
     float sample_rate;
@@ -80,5 +88,7 @@ protected:
 
     EEffectType effect_type;
     ObjectID id; // Unique ID for this effect instance
+
+    size_t frame_offset; // To allow for per-sample MIDI events, we keep track of the current frame offset within the block being processed
 };
 }

@@ -11,12 +11,12 @@ namespace OrangeSodium {
 class ModulationProducer {
 public:
     ModulationProducer(Context* context, ObjectID id);
-    ~ModulationProducer() = default;
+    ~ModulationProducer();
 
     /// @brief Run the modulation
     /// @param mod_inputs External modulation inputs; mod_inputs[0] is a retrigger signal; everything else is implementation specific
     /// @param outputs Audio output of modulation producer
-    virtual void processBlock(SignalBuffer* mod_inputs, SignalBuffer* outputs) = 0;
+    virtual void processBlock(SignalBuffer* mod_inputs, SignalBuffer* outputs, size_t n_frames) = 0;
     virtual void onSampleRateChange(float new_sample_rate) = 0;
     virtual void onRetrigger() = 0;
     virtual void onRelease() = 0;
@@ -64,6 +64,13 @@ public:
         return modulation_output_names;
     }
 
+    void beginBlock() {
+        frame_offset = 0;
+    }
+    size_t getFrameOffset() const {
+        return frame_offset;
+    }
+
 protected:
     Context* m_context;
     SignalBuffer* modulation_buffer;
@@ -72,6 +79,8 @@ protected:
     ObjectID id;
     EObjectType object_type;
     std::vector<std::string> modulation_output_names;
+
+    size_t frame_offset; // To allow for per-sample MIDI events, we keep track of the current frame offset within the block being processed
 };
 
 }

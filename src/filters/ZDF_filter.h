@@ -8,7 +8,7 @@ public:
     ZDFFilter(Context* context, ObjectID id, size_t n_channels);
     ~ZDFFilter() override;
 
-    void processBlock(SignalBuffer* audio_inputs, SignalBuffer* mod_inputs, SignalBuffer* outputs) override;
+    void processBlock(SignalBuffer* audio_inputs, SignalBuffer* mod_inputs, SignalBuffer* outputs, size_t n_frames) override;
     void onSampleRateChange(float new_sample_rate) override;
 
     /// @brief Set the filter type (low-pass, high-pass, band-pass)

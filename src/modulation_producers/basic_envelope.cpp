@@ -30,13 +30,12 @@ BasicEnvelope::BasicEnvelope(Context* context, ObjectID id, float attack, float 
 
 BasicEnvelope::~BasicEnvelope() {}
 
-void BasicEnvelope::processBlock(SignalBuffer* mod_inputs, SignalBuffer* outputs){
+void BasicEnvelope::processBlock(SignalBuffer* mod_inputs, SignalBuffer* outputs, size_t n_frames) {
     if (is_retriggered) {
         current_stage = EStage::kAttack;
         is_retriggered = false;
     }
     float* output_buffer = outputs->getChannel(0);
-    const size_t n_frames = outputs->getChannelLength(0);
     for (size_t i = 0; i < n_frames; ++i) {
         switch (current_stage) {
             case EStage::kIdle:
@@ -72,8 +71,9 @@ void BasicEnvelope::processBlock(SignalBuffer* mod_inputs, SignalBuffer* outputs
                 }
                 break;
         }
-        output_buffer[i] = state;
+        output_buffer[i + frame_offset] = state;
     }
+    frame_offset += n_frames;
 }
 
 void BasicEnvelope::onSampleRateChange(float new_sample_rate) {

@@ -120,6 +120,8 @@ public:
 
     EffectChain* getEffectChainByIndex(EffectChainIndex index);
 
+    void beginBlock();
+
 private:
     /// @brief Collection of all voice oscillators
     std::vector<Oscillator*> oscillators;
@@ -166,6 +168,8 @@ private:
 
     bool should_reset_portamento = true;
     bool should_always_glide = false;
+
+    size_t frame_offset; // To allow for per-sample MIDI events, we keep track of the current frame offset within the block being processed
 
     ObjectID addBasicEnvelopeInternal(BasicEnvelope* env, ObjectID id);
     void calculatePortamentoCoefficient(){

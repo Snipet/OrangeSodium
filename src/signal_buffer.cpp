@@ -160,9 +160,9 @@ void SignalBuffer::zeroOut() {
     }
 }
 
-void SignalBuffer::setConstantValue(size_t channel, float value) {
+void SignalBuffer::setConstantValue(size_t channel, float value, size_t offset) {
     if (channel < n_channels && buffer[channel]) {
-        for (size_t i = 0; i < channel_lengths[channel]; ++i) {
+        for (size_t i = offset; i < channel_lengths[channel]; ++i) {
             buffer[channel][i] = value;
         }
     }

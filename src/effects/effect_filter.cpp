@@ -31,7 +31,7 @@ FilterEffect::~FilterEffect() {
 
 void FilterEffect::processBlock(SignalBuffer* audio_inputs, SignalBuffer* mod_inputs, SignalBuffer* outputs, size_t n_audio_frames) {
     if (filter) {
-        filter->processBlock(audio_inputs, mod_inputs, outputs);
+        filter->processBlock(audio_inputs, mod_inputs, outputs, n_audio_frames);
     }
 }
 

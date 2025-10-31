@@ -38,8 +38,7 @@ ZDFFilter::ZDFFilter(Context* context, ObjectID id, size_t n_channels)
     modulation_source_names.push_back("resonance");
 }
 
-void ZDFFilter::processBlock(SignalBuffer* audio_inputs, SignalBuffer* mod_inputs, SignalBuffer* outputs) {
-    const size_t n_frames = audio_inputs->getChannelLength(0);
+void ZDFFilter::processBlock(SignalBuffer* audio_inputs, SignalBuffer* mod_inputs, SignalBuffer* outputs, size_t n_frames) {
 
     // Get modulation buffers
     // mod_inputs[0] = cutoff [0, 1]
@@ -63,9 +62,9 @@ void ZDFFilter::processBlock(SignalBuffer* audio_inputs, SignalBuffer* mod_input
         for (size_t i = 0; i < n_frames; ++i) {
             // Get modulated parameters
             
-            if(cutoff_divisions == 1 || i / cutoff_divisions != last_cutoff_index) {
+            if(true || cutoff_divisions == 1 || i / cutoff_divisions != last_cutoff_index) {
                 // Cutoff: map [0, 1] to frequency in Hz
-                const float cutoff_mod = (cutoff_buffer) ? cutoff_buffer[i / cutoff_divisions] : 0.f;
+                const float cutoff_mod = (cutoff_buffer) ? cutoff_buffer[i / cutoff_divisions + frame_offset / cutoff_divisions] : 0.f;
                 const float param_cutoff_knob_value = frequencyToKnobValue(param_cutoff);
                 const float cutoff_knob = std::clamp(cutoff_mod + param_cutoff_knob_value, 0.0f, 1.0f);
                 cutoff_hz = knobValueToFrequency(cutoff_knob);
@@ -83,7 +82,7 @@ void ZDFFilter::processBlock(SignalBuffer* audio_inputs, SignalBuffer* mod_input
             g_smooth[c] = g;
 
             // Resonance: map [0, 1] to resonance coefficient
-            const float resonance_mod = (resonance_buffer) ? resonance_buffer[i / resonance_divisions] : 0.f;
+            const float resonance_mod = (resonance_buffer) ? resonance_buffer[i / resonance_divisions + frame_offset / resonance_divisions] : 0.f;
             const float resonance = std::clamp(resonance_mod + param_resonance, 0.0f, 1.0f);
 
             // Compute ZDF SVF coefficients
@@ -93,7 +92,7 @@ void ZDFFilter::processBlock(SignalBuffer* audio_inputs, SignalBuffer* mod_input
             //const float k = 0.4f;
 
             // ZDF SVF processing (Topology-Preserving Transform)
-            const float input_signal = in_buffer[i] - k * ic4eq[c];
+            const float input_signal = in_buffer[i + frame_offset] - k * ic4eq[c];
 
             float v0 = (input_signal * g + ic1eq[c]) / (1.0f + g);
             ic1eq[c] = 2.f * v0 - ic1eq[c];
@@ -107,9 +106,10 @@ void ZDFFilter::processBlock(SignalBuffer* audio_inputs, SignalBuffer* mod_input
             // Select output based on filter type
             float output_signal = v3;
 
-            out_buffer[i] = output_signal;
+            out_buffer[i + frame_offset] = output_signal;
         }
     }
+    frame_offset += n_frames;
 }
 
 void ZDFFilter::onSampleRateChange(float new_sample_rate) {
@@ -124,6 +124,9 @@ void ZDFFilter::setFilterType(EFilterType type) {
 ZDFFilter::~ZDFFilter() {
     delete[] ic1eq;
     delete[] ic2eq;
+    delete[] ic3eq;
+    delete[] ic4eq;
+    delete[] g_smooth;
 }
 
 } // namespace OrangeSodium
