@@ -163,9 +163,16 @@ void OrangeSodiumTestingPlaygroundAudioProcessor::processBlock (juce::AudioBuffe
     auto totalNumOutputChannels = getTotalNumOutputChannels();
 
     if (synthsNeedSwapped) {
-        OrangeSodium::Synthesizer* tmp_synth = synth;
+
+        // Delete old synth so Lua can handle closing
+        delete synth;
+        synth = nullptr;
+
+        swap_synth = OrangeSodium::createSynthesizerFromString(newProgram.toStdString());
+        logStream.str(""); // Reset log stream
+        swap_synth->setLogStream(&logStream);
+        swap_synth->buildSynthFromProgram();
         synth = swap_synth;
-        delete tmp_synth;
         if (synth) {
             synth->prepare(2, lastSamplesPerBlock, static_cast<float>(lastSampleRate));
         }
@@ -328,11 +335,8 @@ void OrangeSodiumTestingPlaygroundAudioProcessor::initSynth()
 
 void OrangeSodiumTestingPlaygroundAudioProcessor::updateProgram(juce::String& program) {
 
-    swap_synth = OrangeSodium::createSynthesizerFromString(program.toStdString());
-    swap_synth->setLogStream(&logStream);
-    swap_synth->buildSynthFromProgram();
     synthsNeedSwapped = true;
-    logStream.str(""); // Reset log stream
+    newProgram = program;
 }
 
 void OrangeSodiumTestingPlaygroundAudioProcessor::getLogText(juce::String& text) {

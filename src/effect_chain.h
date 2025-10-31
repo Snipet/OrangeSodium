@@ -13,6 +13,7 @@ public:
     ObjectID addEffectFilter(const std::string& filter_object_type, float frequency, float resonance);
     ObjectID addEffectFilterJSON(const std::string& json_data);
     ObjectID addEffectDistortionJSON(const std::string& json_data);
+    ObjectID addEffectFreqDiffuseJSON(const std::string& json_data);
     Effect* getEffectByIndex(size_t index);
     size_t getNumEffects() const { return effects.size(); }
     void setIO(SignalBuffer* input, SignalBuffer* output) {

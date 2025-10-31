@@ -1,6 +1,7 @@
 #include "effect_chain.h"
 #include "effects/effect_filter.h"
 #include "effects/effect_distortion.h"
+#include "effects/effect_freqdiffuse.h"
 #include "json/include/nlohmann/json.hpp"
 
 using json = nlohmann::json;
@@ -75,6 +76,32 @@ ObjectID EffectChain::addEffectDistortionJSON(const std::string& json_data) {
     SignalBuffer* mod_buffer = new SignalBuffer(SignalBuffer::EType::kMod, m_context->max_n_frames, DistortionEffect::getMaxModulationChannels());
 
     SignalBuffer* output_buffer = new SignalBuffer(SignalBuffer::EType::kAudio, m_context->max_n_frames, n_channels);
+
+    effect->setModulationBuffer(mod_buffer);
+    effect->setOutputBuffer(output_buffer);
+    effects.push_back(effect);
+    effect_ids.push_back(id);
+    return id;
+}
+
+ObjectID EffectChain::addEffectFreqDiffuseJSON(const std::string& json_data) {
+    json j;
+    try {
+        j = json::parse(json_data);
+    } catch (json::parse_error& e) {
+        *(m_context->log_stream) << "Error parsing JSON data for FreqDiffuseEffect: " << e.what() << std::endl;
+        return -1; // Indicate error
+    }
+
+    //float diffusion_amount = j.value("diffusion_amount", 0.5f);
+
+    ObjectID id = m_context->getNextObjectID();
+    FreqDiffuseEffect* effect = new FreqDiffuseEffect(m_context, id, n_channels, 24*4);
+    //effect->setDiffusionAmount(diffusion_amount);
+
+    // We only need to create the output bufer; the input buffer will be automatically connected
+    SignalBuffer* output_buffer = new SignalBuffer(SignalBuffer::EType::kAudio, m_context->max_n_frames, n_channels);
+    SignalBuffer* mod_buffer = new SignalBuffer(SignalBuffer::EType::kMod, m_context->max_n_frames, FreqDiffuseEffect::getMaxModulationChannels());
 
     effect->setModulationBuffer(mod_buffer);
     effect->setOutputBuffer(output_buffer);

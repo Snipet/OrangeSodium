@@ -132,6 +132,7 @@ set(SOURCES
     src/effect.cpp
     src/effects/effect_filter.cpp
     src/effect_chain.cpp
+    src/effects/effect_freqdiffuse.cpp
 )
 
 # Create the library

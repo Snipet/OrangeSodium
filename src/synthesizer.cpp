@@ -8,7 +8,8 @@
 
 namespace OrangeSodium {
 
-Synthesizer::Synthesizer(Context* context, float sample_rate, size_t n_frames) : m_context(context) {
+Synthesizer::Synthesizer(float sample_rate, size_t n_frames) : m_context(nullptr) {
+    m_context = new Context();
     m_context->oversampling = 2;
     m_context->sample_rate = sample_rate * static_cast<double>(m_context->oversampling);
     m_context->max_n_frames = n_frames * m_context->oversampling;
@@ -30,6 +31,7 @@ Synthesizer::Synthesizer(Context* context, float sample_rate, size_t n_frames) :
     // Configure master output buffer
     master_output_buffer = new SignalBuffer(SignalBuffer::EType::kAudio, n_frames, 2); // Default to stereo
     oversampled_buffer = new SignalBuffer(SignalBuffer::EType::kAudio, n_frames * m_context->oversampling, 2);
+    program_valid = false;
 }
 
 Synthesizer::~Synthesizer() {
@@ -55,6 +57,11 @@ Synthesizer::~Synthesizer() {
     }
     audio_buffers.resize(0);
     audio_buffers.clear();
+
+    if (m_context) {
+        delete m_context;
+        m_context = nullptr;
+    }
 }
 
 void Synthesizer::loadScript(std::string script_path) {
@@ -85,6 +92,7 @@ void Synthesizer::loadScriptFromString(const std::string& script_data) {
 }
 
 void Synthesizer::buildSynthFromProgram() {
+    program_valid = false;
     *m_context->log_stream << "[synthesizer.cpp] Building synthesizer from program" << std::endl;
     if (!program) {
         return;
@@ -103,14 +111,24 @@ void Synthesizer::buildSynthFromProgram() {
     voices.resize(0);
     for(size_t i = 0; i < m_context->n_voices; ++i){
         Voice* new_voice = program->buildVoice();
+        if(!new_voice) {
+            ConsoleUtility::logRed(m_context->log_stream, "Error building voice " + std::to_string(i));
+            return;
+        }
         voices.push_back(std::unique_ptr<Voice>(new_voice));
         ConsoleUtility::logGreen(m_context->log_stream, "Added voice " + std::to_string(i));
     }
+
+    program_valid = true; //FOR LATER: Check if voice throws any errors
+    *m_context->log_stream << "[synthesizer.cpp] Synthesizer build complete" << std::endl;
 
     connectEffects();
 }
 
 void Synthesizer::processIntermediateBlock(size_t n_channels, size_t n_frames) {
+    if (!program_valid) {
+        return;
+    }
     // Process at 2x sample rate (2x frames)
     size_t oversampled_frames = n_frames * m_context->oversampling;
     
@@ -146,7 +164,9 @@ void Synthesizer::processIntermediateBlock(size_t n_channels, size_t n_frames) {
 }
 
 void Synthesizer::finishBlock(float** output_buffers, size_t n_channels, size_t n_frames) {
-    
+    if(!program_valid){
+        return;
+    }
     // Downsample back to original sample rate
     for(size_t c = 0; c < n_channels; ++c) {
         float* oversampled_data = oversampled_buffer->getChannel(c);
@@ -183,6 +203,9 @@ void Synthesizer::finishBlock(float** output_buffers, size_t n_channels, size_t 
 }
 
 void Synthesizer::prepare(size_t n_channels, size_t n_frames, float sample_rate){
+    if(!program_valid) {
+        return;
+    }
     m_context->max_n_frames = n_frames * m_context->oversampling;
     m_context->sample_rate = sample_rate * static_cast<double>(m_context->oversampling);
     initializeOversampling(n_channels);
@@ -380,6 +403,9 @@ EffectChain* Synthesizer::getEffectChainByIndex(EffectChainIndex index) {
 }
 
 void Synthesizer::beginBlock() {
+    if(!program_valid) {
+        return;
+    }
     frame_offset = 0;
 
     for (auto& voice : voices) {

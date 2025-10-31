@@ -9,29 +9,37 @@ print("OrangeSodium Version: " .. os_version)
 sawtooth_waveform = create_sawtooth_waveform()
 
 master_audio_buffer = add_audio_buffer(2)
+fx_buffer = add_audio_buffer(2)
+fx_chain = add_effect_chain(2, master_audio_buffer, fx_buffer)
+--diffuse_fx = add_freqdiffuse_effect(fx_chain, "{}")
+--distortion_fx = add_distortion_effect(fx_chain, '{"drive": 8.0, "type": "soft"}')
+--print("Added frequency diffusion effect with ID: " .. diffuse_fx)
 
-
-add_buffer_to_master(master_audio_buffer)
+add_buffer_to_master(fx_buffer)
 
 function get_num_voices()
-    return 8
+    return 1
 end
 
 function build_voice()
     print("Building voice...")
+    --set_portamento(0.018, false)
     audio_buf = add_voice_audio_buffer(2)
     vfx_buf= add_voice_audio_buffer(2)
     vfx_chain = add_voice_effect_chain(2, audio_buf, vfx_buf)
     
     print("Added audio buffer with ID: " .. audio_buf)
 
-    amp_env = add_basic_envelope(0.0, 0.1, 1.0, 0.4)
+    amp_env = add_basic_envelope(0.0, 0.1, 1.0, 0.01)
     waveform_osc = add_waveform_osc(2, sawtooth_waveform, 0.0, audio_buf)
     print("Added waveform oscillator with ID: " .. waveform_osc)
-    filter_env = add_basic_envelope(0.0, 0.4, 0.4, 0.4)
-    filter_fx = add_filter_effect(vfx_chain, "ZDF", 3000.0, 0.7)
+    filter_env = add_basic_envelope(0.0, 0.2, 0.4, 0.4)
+    --filter_fx = add_filter_effect(vfx_chain, "ZDF", 100.0, 0.1)
+    pitch_env = add_basic_envelope(0.0, 0.02, 0.0, 0.1)
 
-    add_modulation(amp_env, "output", waveform_osc, "amplitude", 0.4)
+    add_modulation(amp_env, "output", waveform_osc, "amplitude", 0.6)
+    --add_modulation(filter_env, "output", filter_fx, "cutoff", 0.5)
+    add_modulation(pitch_env, "output", waveform_osc, "pitch", 48)
 
 
     set_voice_rand_detune(0.07)

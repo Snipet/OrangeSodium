@@ -425,11 +425,11 @@ void Voice::processVoice(size_t n_audio_frames) {
             const size_t source_division = source_buffer->getChannelDivision(mod->source_index);
             const size_t dest_division = dest_buffer->getChannelDivision(mod->dest_index);
             // Apply modulation
-            for(size_t i = frame_offset; i < n_audio_frames; ++i){
+            for(size_t i = 0; i < n_audio_frames; ++i){
                 size_t source_idx = i / source_division;
                 size_t dest_idx = i / dest_division;
                 if(source_idx < n_audio_frames && dest_idx < n_audio_frames){
-                    dest_channel[dest_idx] += mod->amount * source_channel[source_idx];
+                    dest_channel[dest_idx + frame_offset / dest_division] += mod->amount * source_channel[source_idx + frame_offset / source_division];
                 }
             }
         }else if (mod->dest_type == EObjectType::kEffect){

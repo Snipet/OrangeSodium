@@ -11,7 +11,7 @@
 namespace OrangeSodium {
 class Synthesizer {
 public:
-    Synthesizer(Context* context, float sample_rate = 44100.0f, size_t n_frames = 512);
+    Synthesizer(float sample_rate = 44100.0f, size_t n_frames = 512);
     ~Synthesizer();
 
     void loadScript(std::string script_path);
@@ -40,6 +40,7 @@ public:
 
     void beginBlock();
     size_t getFrameOffset() const { return frame_offset; }
+    Context* getContext() const { return m_context; }
 
 private:
     std::vector<std::unique_ptr<Voice>> voices;
@@ -59,6 +60,7 @@ private:
 
     size_t frame_offset; // To allow for per-sample MIDI events, we keep track of the current frame offset within the block being processed
 
+    bool program_valid;
 
     static constexpr int HIIR_COEFFS = 8; // or 12 for higher quality
     std::vector<hiir::Downsampler2xFpu<HIIR_COEFFS>> downsamplers;

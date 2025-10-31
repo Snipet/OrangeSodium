@@ -7,11 +7,10 @@ namespace OrangeSodium{
 
 
 Synthesizer* createSynthesizerFromScript(std::string script_path){
-    Context* context = new Context();
-    *context->log_stream << "[orange_sodium.cpp] Created context" << std::endl;
 
 
-    Synthesizer* synth = new Synthesizer(context);
+    Synthesizer* synth = new Synthesizer();
+    Context* context = synth->getContext();
     *context->log_stream << "[orange_sodium.cpp] Created synthesizer" << std::endl;
 
     *context->log_stream << "[orange_sodium.cpp] Loading script: " << script_path << std::endl;
@@ -22,10 +21,9 @@ Synthesizer* createSynthesizerFromScript(std::string script_path){
 }
 
 Synthesizer* createSynthesizerFromString(const std::string& script_data){
-    Context* context = new Context();
-    *context->log_stream << "[orange_sodium.cpp] Created context" << std::endl;
 
-    Synthesizer* synth = new Synthesizer(context);
+    Synthesizer* synth = new Synthesizer();
+    Context* context = synth->getContext();
     *context->log_stream << "[orange_sodium.cpp] Created synthesizer" << std::endl;
 
     *context->log_stream << "[orange_sodium.cpp] Loading script from string" << std::endl;

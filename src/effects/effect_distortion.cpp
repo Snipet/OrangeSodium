@@ -17,6 +17,7 @@ DistortionEffect::DistortionEffect(Context* context, ObjectID id, size_t n_chann
     mix = 1.0f;         // Default dry/wet mix
     output_gain = 1.0f; // Default output gain
     effect_type = EEffectType::kDistortion;
+    distortion_type = EDistortionType::kTanh; // Default distortion type
 }
 
 void DistortionEffect::processBlock(SignalBuffer* audio_inputs, SignalBuffer* mod_inputs, SignalBuffer* outputs, size_t n_audio_frames) {
@@ -34,7 +35,7 @@ void DistortionEffect::processBlock(SignalBuffer* audio_inputs, SignalBuffer* mo
             float driven_sample = in_buffer[i + frame_offset] * drive;
 
             // Simple tanh distortion
-            float distorted_sample = std::tanh(driven_sample);
+            float distorted_sample = processSample(driven_sample, c);
 
             // Mix dry and wet signals
             out_buffer[i + frame_offset] = (1.0f - mix) * in_buffer[i + frame_offset] + mix * distorted_sample;
@@ -49,11 +50,31 @@ void DistortionEffect::processBlock(SignalBuffer* audio_inputs, SignalBuffer* mo
 DistortionEffect::EDistortionType DistortionEffect::getDistortionTypeFromString(const std::string& type_string) {
     std::string type_lowercase = type_string;
     std::transform(type_lowercase.begin(), type_lowercase.end(), type_lowercase.begin(), ::tolower);
-    if (type_string == "tanh" || type_string == "soft") {
+    if (type_string == "soft") {
         return EDistortionType::kTanh;
     }
-    // Default to tanh if unknown
-    return EDistortionType::kTanh;
+    if( type_string == "hardclip" || type_string == "hard_clip" || type_string == "hard") {
+        return EDistortionType::kHardClip;
+    }
+
+    return EDistortionType::kUnknown;
+}
+
+float DistortionEffect::processSample(float input_sample, int channel) {
+    switch (distortion_type) {
+        case EDistortionType::kTanh:
+            return std::tanh(input_sample);
+        case EDistortionType::kHardClip:
+            return processHardClip(input_sample);
+        case EDistortionType::kUnknown:
+            return input_sample; // No distortion
+        default:
+            return std::tanh(input_sample);
+    }
+}
+
+float DistortionEffect::processHardClip(float x){
+    return std::max(-1.0f, std::min(1.0f, x));
 }
 
 }

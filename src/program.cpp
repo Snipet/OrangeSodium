@@ -1185,6 +1185,8 @@ static int l_add_effect_distortion(lua_State* L) {
         lua_pushnil(L);
         return 1;
     }
+
+    std::cout << "l_add_effect_distortion called" << std::endl;
     EffectChainIndex effect_chain_id = static_cast<EffectChainIndex>(lua_tointeger(L, 1));
     ObjectID distortion_id = static_cast<ObjectID>(-1);
 
@@ -1215,7 +1217,9 @@ static int l_add_effect_distortion(lua_State* L) {
     } 
     else if (lua_isstring(L, 2)) {
         // JSON String mode
+        //std::cout << "Distortion params as JSON string: " << lua_tostring(L, 2) << std::endl;
         std::string json_params = lua_tostring(L, 2);
+        //std::cout << "Distortion params as JSON string: " << json_params << std::endl;
         distortion_id = effect_chain->addEffectDistortionJSON(json_params);
     } 
     else {
@@ -1223,11 +1227,72 @@ static int l_add_effect_distortion(lua_State* L) {
         return 1;
     }
     // Return the distortion ID
+    //std::cout << "Distortion ID: " << distortion_id << std::endl;
     if(distortion_id == static_cast<ObjectID>(-1)){
         lua_pushnil(L);
     } else {
         lua_pushinteger(L, distortion_id);
     }
+    return 1;
+}
+
+static int l_add_effect_freqdiffuse(lua_State* L) {
+    // Add a frequency diffusion effect to the target effects chain
+    // Arguments:
+    //  Version 1 (Lua Table) : effect_chain_id (int), lua_table_params (table)
+    //  Version 2 (JSON String) : effect_chain_id (int), json_params (string)
+    // Returns ObjectID of the freqdiffuse effect or nil on failure
+    if(lua_gettop(L) < 2 || !lua_isinteger(L, 1)){
+        lua_pushnil(L);
+        return 1;
+    }
+
+    EffectChainIndex effect_chain_id = static_cast<EffectChainIndex>(lua_tointeger(L, 1));
+    ObjectID freqdiffuse_id = static_cast<ObjectID>(-1);
+
+    // Get program from registry
+    lua_pushstring(L, "__program_instance");
+    lua_gettable(L, LUA_REGISTRYINDEX);
+    void* program_ptr = lua_touserdata(L, -1);
+    lua_pop(L, 1);
+    if (!program_ptr) {
+        lua_pushnil(L);
+        return 1;
+    }
+
+    Program* program = static_cast<Program*>(program_ptr);
+    // Get the effect chain from the program
+    EffectChain* effect_chain = program->getEffectChainByIndex(effect_chain_id);
+    if (!effect_chain) {
+        lua_pushnil(L);
+        return 1;
+    }
+
+    // Check if second argument is a table
+    if (lua_istable(L, 2)) {
+        // Lua Table mode
+        json j;
+        lua_table_to_json(L, 2, j);
+        freqdiffuse_id = effect_chain->addEffectFreqDiffuseJSON(j.dump());
+    } 
+    else if (lua_isstring(L, 2)) {
+        // JSON String mode
+        std::string json_params = lua_tostring(L, 2);
+        freqdiffuse_id = effect_chain->addEffectFreqDiffuseJSON(json_params);
+    } 
+    else {
+        lua_pushnil(L);
+        return 1;
+    }
+
+    // Return the freqdiffuse ID
+    if(freqdiffuse_id == static_cast<ObjectID>(-1)){
+        lua_pushnil(L);
+    } else {
+        lua_pushinteger(L, freqdiffuse_id);
+    }
+    return 1;
+
 }
 
 //==========================================================================
@@ -1274,6 +1339,8 @@ Program::Program(Context* context, void* parent_synthesizer) : context(context),
     lua_register(getLuaState(L), "add_effect_chain", l_add_effect_chain);
     lua_register(getLuaState(L), "json_to_table", lua_json_to_table);
     lua_register(getLuaState(L), "table_to_json", lua_table_to_json);
+    lua_register(getLuaState(L), "add_distortion_effect", l_add_effect_distortion);
+    lua_register(getLuaState(L), "add_freqdiffuse_effect", l_add_effect_freqdiffuse);
 
     // Override Lua print function
     lua_pushcfunction(getLuaState(L), l_cpp_print);
@@ -1320,6 +1387,7 @@ bool Program::execute() {
     if (luaL_dostring(getLuaState(L), program_data.c_str()) != LUA_OK) {
         *context->log_stream << "[Program] Lua error: " << lua_tostring(getLuaState(L), -1) << std::endl;
         lua_close(getLuaState(L));
+        L = nullptr;  // Prevent double-free in destructor
         return false;
     }
     return true;
@@ -1334,6 +1402,11 @@ void Program::throwProgramError(ErrorCode code) {
 size_t Program::getNumVoicesDefined(){
     // Call Lua function get_num_voices() if it exists
     size_t num_voices = 0;
+
+    if (!L) {
+        return num_voices;  // Return 0 if Lua state was closed due to error
+    }
+
     lua_getglobal(getLuaState(L), "get_num_voices");
     if (lua_isfunction(getLuaState(L), -1)) {
         if (lua_pcall(getLuaState(L), 0, 1, 0) != LUA_OK) {
@@ -1352,6 +1425,11 @@ size_t Program::getNumVoicesDefined(){
 }
 
 Voice* Program::buildVoice() {
+    if (!L) {
+        *context->log_stream << "[Program] Cannot build voice: Lua state was closed due to error" << std::endl;
+        return nullptr;  // Don't create voice if Lua state is invalid
+    }
+
     Voice* voice = new Voice(context, parent_synthesizer);
     setTemplateVoice(voice);
     context->next_effect_chain_id = 0;
@@ -1362,6 +1440,8 @@ Voice* Program::buildVoice() {
         if (lua_pcall(getLuaState(L), 0, 0, 0) != LUA_OK) {
             *context->log_stream << "[Program] Lua error in build_voice: " << lua_tostring(getLuaState(L), -1) << std::endl;
             lua_pop(getLuaState(L), 1); // Pop error message
+            delete voice;  // Clean up allocated voice before returning
+            return nullptr;
         }
     } else {
         lua_pop(getLuaState(L), 1); // Pop non-function

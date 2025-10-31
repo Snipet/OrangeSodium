@@ -10,6 +10,8 @@ class DistortionEffect : public Effect {
 public:
     enum class EDistortionType {
         kTanh = 0,
+        kHardClip,
+        kUnknown,
     };
     DistortionEffect(Context* context, ObjectID id, size_t n_channels);
     ~DistortionEffect() = default;
@@ -29,6 +31,9 @@ private:
     float mix;   // Dry/Wet mix
     float output_gain; // Output gain
     EDistortionType distortion_type;
+
+    inline float processSample(float input_sample, int channel);
+    inline float processHardClip(float x);
 };
 
 }

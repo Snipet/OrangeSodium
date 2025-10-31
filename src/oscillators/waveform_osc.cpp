@@ -104,7 +104,7 @@ void WaveformOscillator::processBlock(SignalBuffer* audio_inputs, SignalBuffer* 
             // We need to update playback_buffer if the pitch has changed too far from last_fft_pitch
 
 
-            const float pitch_hz = getHzFromMIDINote(pitch_buffer[i / pitch_buffer_divisions] + frequency_offset);
+            const float pitch_hz = getHzFromMIDINote(pitch_buffer[(i + frame_offset) / pitch_buffer_divisions] + frequency_offset);
             if(fft_tick[c] >= 4){
                 const float bins_above_nyq = getBinsAboveNyquistForFrequency(pitch_hz, bin_cutoff[c]);
                 if(bins_above_nyq < 1.f || bins_above_nyq > bins_allowed_above_nyquist){
@@ -118,7 +118,7 @@ void WaveformOscillator::processBlock(SignalBuffer* audio_inputs, SignalBuffer* 
             float phase_increment = pitch_norm;
             phase[c] += phase_increment;
             phase[c] = std::fmod(phase[c], 1.f);
-            const float amp = amplitude + ((amplitude_buffer) ? amplitude_buffer[i / amplitude_buffer_divisions] : 0.0f);
+            const float amp = amplitude + ((amplitude_buffer) ? amplitude_buffer[(i + frame_offset) / amplitude_buffer_divisions] : 0.0f);
             out_buffer[i + frame_offset] += amp * getSampleFromWaveform(phase[c]);
 
             fft_tick[c]++;

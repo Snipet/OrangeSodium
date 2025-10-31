@@ -74,6 +74,7 @@ private:
     double lastSampleRate;
     int lastSamplesPerBlock;
     std::ostringstream logStream;
+    juce::String newProgram;
 
     //==============================================================================
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (OrangeSodiumTestingPlaygroundAudioProcessor)
