@@ -120,7 +120,7 @@ set(SOURCES
     src/signal_buffer.cpp
     src/synthesizer.cpp
     src/voice.cpp
-    src/effects/simple_distortion.cpp
+    src/effects/effect_distortion.cpp
     src/oscillators/sine_osc.cpp
     src/oscillators/waveform_osc.cpp
     src/modulator_producer.cpp
@@ -131,6 +131,7 @@ set(SOURCES
     src/filter.cpp
     src/effect.cpp
     src/effects/effect_filter.cpp
+    src/effect_chain.cpp
 )
 
 # Create the library

@@ -1,0 +1,1 @@
+Make the processBlock functions resumable so we can do per-sample MIDI events

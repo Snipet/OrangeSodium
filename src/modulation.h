@@ -20,6 +20,12 @@ struct Modulation{
     size_t dest_index = 0; // Index of destination modulation channel
     float amount = 0.0f; // Modulation amount
     EObjectType dest_type;
+
+    bool dest_is_effect;
+
+    // Used only if the destination is an effect inside an effect chain
+    EffectChainIndex effect_chain_index;
+    size_t effect_index;
 };
 
 };

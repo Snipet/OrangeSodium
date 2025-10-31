@@ -1,4 +1,4 @@
-#include "simple_distortion.h"
+#include "effect_distortion.h"
 
 
 namespace OrangeSodium {
@@ -15,6 +15,7 @@ SimpleDistortion::SimpleDistortion(Context* context, ObjectID id, size_t n_chann
     drive = 1.0f;       // Default drive
     mix = 1.0f;         // Default dry/wet mix
     output_gain = 1.0f; // Default output gain
+    effect_type = EEffectType::kDistortion;
 }
 
 void SimpleDistortion::processBlock(SignalBuffer* audio_inputs, SignalBuffer* mod_inputs, SignalBuffer* outputs, size_t n_audio_frames) {
@@ -41,6 +42,14 @@ void SimpleDistortion::processBlock(SignalBuffer* audio_inputs, SignalBuffer* mo
             out_buffer[i] *= output_gain;
         }
     }
+}
+
+SimpleDistortion::EDistortionType SimpleDistortion::getDistortionTypeFromString(const std::string& type_string) {
+    if (type_string == "tanh") {
+        return EDistortionType::kTanh;
+    }
+    // Default to tanh if unknown
+    return EDistortionType::kTanh;
 }
 
 }

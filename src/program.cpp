@@ -4,6 +4,7 @@
 #include <iostream>
 #include "console_utility.h"
 #include <sstream>
+#include "synthesizer.h"
 extern "C" {
 #include "lua/lua.h"
 #include "lua/lauxlib.h"
@@ -266,156 +267,157 @@ static int l_get_object_type(lua_State* L){
     return 1;
 }
 
-static int l_set_master_output_buffer_channels(lua_State* L) {
-    // Set the number of channels for the master output buffer
-    // Arguments: n_channels (int)
-    // Returns: none
+// static int l_set_master_output_buffer_channels(lua_State* L) {
+//     // Set the number of channels for the master output buffer
+//     // Arguments: n_channels (int)
+//     // Returns: none
 
-    if (lua_gettop(L) < 1 || !lua_isinteger(L, 1)) {
-        return 0;
-    }
-    size_t n_channels = static_cast<size_t>(lua_tointeger(L, 1));
-    if (n_channels < 1) {
-        n_channels = 1;
-    }
+//     if (lua_gettop(L) < 1 || !lua_isinteger(L, 1)) {
+//         return 0;
+//     }
+//     size_t n_channels = static_cast<size_t>(lua_tointeger(L, 1));
+//     if (n_channels < 1) {
+//         n_channels = 1;
+//     }
 
-    // Get the Program instance from registry
-    lua_pushstring(L, "__program_instance");
-    lua_gettable(L, LUA_REGISTRYINDEX);
-    void* program_ptr = lua_touserdata(L, -1);
-    lua_pop(L, 1);
+//     // Get the Program instance from registry
+//     lua_pushstring(L, "__program_instance");
+//     lua_gettable(L, LUA_REGISTRYINDEX);
+//     void* program_ptr = lua_touserdata(L, -1);
+//     lua_pop(L, 1);
 
-    if (!program_ptr) {
-        return 0;
-    }
+//     if (!program_ptr) {
+//         return 0;
+//     }
 
-    Program* program = static_cast<Program*>(program_ptr);
-    auto& callback = program->getMasterOutputBufferCallback();
-    if (callback) {
-        callback(n_channels);
-    }
+//     Program* program = static_cast<Program*>(program_ptr);
+//     auto& callback = program->getMasterOutputBufferCallback();
+//     if (callback) {
+//         callback(n_channels);
+//     }
 
-    return 1;
-}
+//     return 1;
+// }
 
-static int l_set_master_output_buffer_default(lua_State* L){
-    // Set the master output buffer to a default stereo buffer
-    // Arguments: none
-    // Returns: none
+// static int l_set_master_output_buffer_default(lua_State* L){
+//     // Set the master output buffer to a default stereo buffer
+//     // Arguments: none
+//     // Returns: none
 
-    // Get the Program instance from registry
-    lua_pushstring(L, "__program_instance");
-    lua_gettable(L, LUA_REGISTRYINDEX);
-    void* program_ptr = lua_touserdata(L, -1);
-    lua_pop(L, 1);
+//     // Get the Program instance from registry
+//     lua_pushstring(L, "__program_instance");
+//     lua_gettable(L, LUA_REGISTRYINDEX);
+//     void* program_ptr = lua_touserdata(L, -1);
+//     lua_pop(L, 1);
 
-    if (!program_ptr) {
-        return 0;
-    }
+//     if (!program_ptr) {
+//         return 0;
+//     }
 
-    Program* program = static_cast<Program*>(program_ptr);
-    auto& callback = program->getMasterOutputBufferCallback();
-    if (callback) {
-        callback(2); // Default to stereo
-    }
+//     Program* program = static_cast<Program*>(program_ptr);
+//     auto& callback = program->getMasterOutputBufferCallback();
+//     if (callback) {
+//         callback(2); // Default to stereo
+//     }
 
-    return 1;
-}
+//     return 1;
+// }
 
-static int l_set_voice_output_buffer_channels(lua_State* L) {
-    // Set the number of channels for the voice's master audio buffer
-    // Arguments: n_channels (int)
-    // Returns: none
+// static int l_set_voice_output_buffer_channels(lua_State* L) {
+//     // Set the number of channels for the voice's master audio buffer
+//     // Arguments: n_channels (int)
+//     // Returns: none
 
-    if (lua_gettop(L) < 1 || !lua_isinteger(L, 1)) {
-        return 0;
-    }
-    size_t n_channels = static_cast<size_t>(lua_tointeger(L, 1));
-    if (n_channels < 1) {
-        n_channels = 1;
-    }
+//     if (lua_gettop(L) < 1 || !lua_isinteger(L, 1)) {
+//         return 0;
+//     }
+//     size_t n_channels = static_cast<size_t>(lua_tointeger(L, 1));
+//     if (n_channels < 1) {
+//         n_channels = 1;
+//     }
 
-    // Get the template voice pointer from registry
-    lua_pushstring(L, "__template_voice");
-    lua_gettable(L, LUA_REGISTRYINDEX);
-    void* voice_ptr = lua_touserdata(L, -1);
-    lua_pop(L, 1);
+//     // Get the template voice pointer from registry
+//     lua_pushstring(L, "__template_voice");
+//     lua_gettable(L, LUA_REGISTRYINDEX);
+//     void* voice_ptr = lua_touserdata(L, -1);
+//     lua_pop(L, 1);
 
-    if (!voice_ptr) {
-        return 0;
-    }
+//     if (!voice_ptr) {
+//         return 0;
+//     }
 
-    Voice* voice = static_cast<Voice*>(voice_ptr);
-    voice->setMasterAudioBufferInfo(n_channels);
+//     Voice* voice = static_cast<Voice*>(voice_ptr);
+//     voice->setMasterAudioBufferInfo(n_channels);
 
-    return 1;
-}
+//     return 1;
+// }
 
-static int l_set_voice_output_buffer_default(lua_State* L){
-    // Set the voice's master audio buffer to a default stereo buffer
-    // Arguments: none
-    // Returns: none
+// static int l_set_voice_output_buffer_default(lua_State* L){
+//     // Set the voice's master audio buffer to a default stereo buffer
+//     // Arguments: none
+//     // Returns: none
 
-    // Get the template voice pointer from registry
-    lua_pushstring(L, "__template_voice");
-    lua_gettable(L, LUA_REGISTRYINDEX);
-    void* voice_ptr = lua_touserdata(L, -1);
-    lua_pop(L, 1);
+//     // Get the template voice pointer from registry
+//     lua_pushstring(L, "__template_voice");
+//     lua_gettable(L, LUA_REGISTRYINDEX);
+//     void* voice_ptr = lua_touserdata(L, -1);
+//     lua_pop(L, 1);
 
-    if (!voice_ptr) {
-        return 0;
-    }
+//     if (!voice_ptr) {
+//         return 0;
+//     }
 
-    Voice* voice = static_cast<Voice*>(voice_ptr);
-    voice->setMasterAudioBufferInfo(2); // Default to stereo
+//     Voice* voice = static_cast<Voice*>(voice_ptr);
+//     voice->setMasterAudioBufferInfo(2); // Default to stereo
 
-    return 1;
-}
+//     return 1;
+// }
 
-static int l_config_default_io(lua_State* L) {
-    // Configure default IO: stereo master output and voice output
-    // Arguments: none
-    // Returns: none
+// static int l_config_default_io(lua_State* L) {
+//     // Configure default IO: stereo master output and voice output
+//     // Arguments: none
+//     // Returns: none
 
-    // Get the Program instance from registry
-    lua_pushstring(L, "__program_instance");
-    lua_gettable(L, LUA_REGISTRYINDEX);
-    void* program_ptr = lua_touserdata(L, -1);
-    lua_pop(L, 1);
+//     // Get the Program instance from registry
+//     lua_pushstring(L, "__program_instance");
+//     lua_gettable(L, LUA_REGISTRYINDEX);
+//     void* program_ptr = lua_touserdata(L, -1);
+//     lua_pop(L, 1);
 
-    if (!program_ptr) {
-        return 0;
-    }
+//     if (!program_ptr) {
+//         return 0;
+//     }
 
-    Program* program = static_cast<Program*>(program_ptr);
-    auto& callback = program->getMasterOutputBufferCallback();
-    if (callback) {
-        callback(2); // Default to stereo
-    }
+//     Program* program = static_cast<Program*>(program_ptr);
+//     auto& callback = program->getMasterOutputBufferCallback();
+//     if (callback) {
+//         callback(2); // Default to stereo
+//     }
 
-    // Get the template voice pointer from registry
-    lua_pushstring(L, "__template_voice");
-    lua_gettable(L, LUA_REGISTRYINDEX);
-    void* voice_ptr = lua_touserdata(L, -1);
-    lua_pop(L, 1);
+//     // Get the template voice pointer from registry
+//     lua_pushstring(L, "__template_voice");
+//     lua_gettable(L, LUA_REGISTRYINDEX);
+//     void* voice_ptr = lua_touserdata(L, -1);
+//     lua_pop(L, 1);
 
-    if (voice_ptr) {
-        Voice* voice = static_cast<Voice*>(voice_ptr);
-        voice->setMasterAudioBufferInfo(2); // Default to stereo
-    }
+//     if (voice_ptr) {
+//         Voice* voice = static_cast<Voice*>(voice_ptr);
+//         voice->setMasterAudioBufferInfo(2); // Default to stereo
+//     }
 
-    return 1;
-}
+//     return 1;
+// }
 
-static int l_connect_voice_master_audio_buffer_to_source(lua_State* L) {
+static int l_add_voice_audio_buffer_to_master(lua_State* L) {
     // Connect the voice's master audio buffer to a source audio buffer
-    // Arguments: buffer_id (int)
+    // Arguments: buffer_id (int), master_buffer_id (int)
     // Returns: none
 
-    if (lua_gettop(L) < 1 || !lua_isinteger(L, 1)) {
+    if (lua_gettop(L) < 2 || !lua_isinteger(L, 1) || !lua_isinteger(L, 2)) {
         return 0;
     }
     ObjectID buffer_id = static_cast<ObjectID>(lua_tointeger(L, 1));
+    ObjectID master_buffer_id = static_cast<ObjectID>(lua_tointeger(L, 2));
 
     // Get the template voice pointer from registry
     lua_pushstring(L, "__template_voice");
@@ -428,7 +430,7 @@ static int l_connect_voice_master_audio_buffer_to_source(lua_State* L) {
     }
 
     Voice* voice = static_cast<Voice*>(voice_ptr);
-    ErrorCode error = voice->connectMasterAudioBufferToSource(buffer_id);
+    ErrorCode error = voice->addAudioBufferToMaster(buffer_id, master_buffer_id);
     handle_error(L, error);
 
     return 1;
@@ -664,59 +666,63 @@ static int l_add_waveform_osc(lua_State* L){
     return 1;
 }
 
-static int l_configure_voice_effects_io(lua_State* L) {
-    // Configure the IO for voice effects
-    // Arguments: ObjectID of input buffer, ObjectID of output buffer
-    if (lua_gettop(L) < 2 ||
-        !lua_isinteger(L, 1) ||
-        !lua_isinteger(L, 2)) {
-        return 0;
-    }
-    ObjectID input_buffer_id = static_cast<ObjectID>(lua_tointeger(L, 1));
-    ObjectID output_buffer_id = static_cast<ObjectID>(lua_tointeger(L, 2));
-
-    // Get the template voice pointer from registry
-    lua_pushstring(L, "__template_voice");
-    lua_gettable(L, LUA_REGISTRYINDEX);
-    void* voice_ptr = lua_touserdata(L, -1);
-    lua_pop(L, 1);
-    if (!voice_ptr) {
-        return 0;
-    }
-    Voice* voice = static_cast<Voice*>(voice_ptr);
-    ErrorCode error = voice->configureVoiceEffectsIO(input_buffer_id, output_buffer_id);
-    handle_error(L, error);
-    return 1;
-}
-
-static int l_add_voice_effect_filter(lua_State* l){
-    // Add a filter effect to the template voice's voice effects chain
-    // Arguments: filter type (string), number of channels (int), cutoff (float), resonance (float)
+static int l_add_effect_filter(lua_State* l){
+    // Add a filter effect to the target effects chain
+    // Arguments:
+    //   Version 1 (JSON): effect_chain_id (int), json_params (string)
+    //   Version 2 (Numeric): effect_chain_id (int), filter_type (string), cutoff (float), resonance (float)
     // Returns ObjectID of the filter effect or nil on failure
-    if(lua_gettop(l) < 4 ||
-       !lua_isstring(l, 1) ||
-       !lua_isnumber(l, 2) ||
-       !lua_isnumber(l, 3) ||
-       !lua_isnumber(l, 4)){
-        lua_pushnil(l);
-        return 1;
-    }
-    std::string filter_type = lua_tostring(l, 1);
-    int n_channels = static_cast<int>(lua_tointeger(l, 2));
-    float cutoff = static_cast<float>(lua_tonumber(l, 3));
-    float resonance = static_cast<float>(lua_tonumber(l, 4));
 
-    // Get the template voice pointer from registry
-    lua_pushstring(l, "__template_voice");
-    lua_gettable(l, LUA_REGISTRYINDEX);
-    void* voice_ptr = lua_touserdata(l, -1);
-    lua_pop(l, 1);
-    if (!voice_ptr) {
+    if(lua_gettop(l) < 2 || !lua_isinteger(l, 1)){
         lua_pushnil(l);
         return 1;
     }
-    Voice* voice = static_cast<Voice*>(voice_ptr);
-    ObjectID filter_id = voice->addEffectFilter(filter_type, n_channels, cutoff, resonance);
+
+    EffectChainIndex effect_chain_id = static_cast<EffectChainIndex>(lua_tointeger(l, 1));
+    ObjectID filter_id = static_cast<ObjectID>(-1);
+
+    // Get program from registry
+    lua_pushstring(l, "__program_instance");
+    lua_gettable(l, LUA_REGISTRYINDEX);
+    void* program_ptr = lua_touserdata(l, -1);
+    lua_pop(l, 1);
+    if (!program_ptr) {
+        lua_pushnil(l);
+        return 1;
+    }
+    Program* program = static_cast<Program*>(program_ptr);
+
+    // Get the effect chain from the program
+    EffectChain* effect_chain = program->getEffectChainByIndex(effect_chain_id);
+    if (!effect_chain) {
+        lua_pushnil(l);
+        return 1;
+    }
+
+    // Check if second argument is a string
+    if (lua_isstring(l, 2)) {
+        // Check if we have only 2 arguments (JSON mode)
+        if (lua_gettop(l) == 2) {
+            // JSON mode: second argument is JSON string
+            std::string json_params = lua_tostring(l, 2);
+            filter_id = effect_chain->addEffectFilterJSON(json_params);
+        } else {
+            // Numeric mode with 4 arguments: filter_type, cutoff, resonance
+            if (lua_gettop(l) < 4 || !lua_isnumber(l, 3) || !lua_isnumber(l, 4)) {
+                lua_pushnil(l);
+                return 1;
+            }
+            std::string filter_type = lua_tostring(l, 2);
+            float cutoff = static_cast<float>(lua_tonumber(l, 3));
+            float resonance = static_cast<float>(lua_tonumber(l, 4));
+            filter_id = effect_chain->addEffectFilter(filter_type, cutoff, resonance);
+        }
+    } else {
+        lua_pushnil(l);
+        return 1;
+    }
+
+    // Return the filter ID
     if(filter_id == static_cast<ObjectID>(-1)){
         lua_pushnil(l);
     } else {
@@ -777,9 +783,157 @@ static int l_cpp_print(lua_State* L) {
     return 0;
 }
 
+static int l_add_voice_effect_chain(lua_State* L){
+    // Add a voice effect chain to the template voice
+    // Arguments: number of channels (int), input_buffer_id (int), output_buffer_id (int)
+    // Returns: effect_chain_id (int) or nil on failure
+    if (lua_gettop(L) < 3 ||
+        !lua_isinteger(L, 1) ||
+        !lua_isinteger(L, 2) ||
+        !lua_isinteger(L, 3)) {
+        lua_pushnil(L);
+        return 1;
+    }
+    size_t n_channels = static_cast<size_t>(lua_tointeger(L, 1));
+    ObjectID input_buffer_id = static_cast<ObjectID>(lua_tointeger(L, 2));
+    ObjectID output_buffer_id = static_cast<ObjectID>(lua_tointeger(L, 3));
+
+    // Get the template voice pointer from registry
+    lua_pushstring(L, "__template_voice");
+    lua_gettable(L, LUA_REGISTRYINDEX);
+    void* voice_ptr = lua_touserdata(L, -1);
+    lua_pop(L, 1);
+    if (!voice_ptr) {
+        lua_pushnil(L);
+        return 1;
+    }
+    Voice* voice = static_cast<Voice*>(voice_ptr);
+    ObjectID effect_chain_id = voice->addEffectChain(n_channels, input_buffer_id, output_buffer_id);
+    
+    // Return the effect chain ID
+    lua_pushinteger(L, effect_chain_id);
+    return 1;
+}
+
+static int l_add_audio_buffer(lua_State* L){
+    // Add an audio buffer to the synthesizer (NOT THE VOICE)
+    // Arguments: n_channels (int)
+    // n_frames is taken from context
+    // Returns: buffer_id (int) or nil on failure
+
+    if (lua_gettop(L) < 1 || !lua_isinteger(L, 1)) {
+        lua_pushnil(L);
+        return 1;
+    }
+
+    size_t n_channels = static_cast<size_t>(lua_tointeger(L, 1));
+    if (n_channels < 1) {
+        n_channels = 1;
+    }
+
+    // Get the Program instance from registry to access context
+    lua_pushstring(L, "__program_instance");
+    lua_gettable(L, LUA_REGISTRYINDEX);
+    void* program_ptr = lua_touserdata(L, -1);
+    lua_pop(L, 1);
+    if (!program_ptr) {
+        lua_pushnil(L);
+        return 1;
+    }
+    Program* program = static_cast<Program*>(program_ptr);
+    Context* context = program->getContext();
+    Synthesizer* synthesizer = static_cast<Synthesizer*>(program->getParentSynthesizer());
+    ObjectID id = synthesizer->addAudioBuffer(n_channels);
+    lua_pushinteger(L, id);
+    return 1;
+}
+
+static int l_add_audio_buffer_to_master(lua_State* L) {
+    // Add an audio buffer (in the synthesizer, NOT THE VOICE) to the master output
+    // Arguments: buffer_id (int)
+    // Returns: none
+
+    if (lua_gettop(L) < 1 || !lua_isinteger(L, 1)) {
+        return 0;
+    }
+    ObjectID buffer_id = static_cast<ObjectID>(lua_tointeger(L, 1));
+    
+    // Get the Program instance from registry
+    lua_pushstring(L, "__program_instance");
+    lua_gettable(L, LUA_REGISTRYINDEX);
+    void* program_ptr = lua_touserdata(L, -1);
+    lua_pop(L, 1);
+    if (!program_ptr) {
+        return 0;
+    }
+    Program* program = static_cast<Program*>(program_ptr);
+    Synthesizer* synthesizer = static_cast<Synthesizer*>(program->getParentSynthesizer());
+    ErrorCode error = synthesizer->assignAudioBufferToOutput(buffer_id);
+    handle_error(L, error);
+    return 1;
+}
+
+static int l_set_portamento(lua_State* L) {
+    // Sets the portamento time and whether the voice should always glide
+    // Arguments: time (float), always_glide (bool)
+    // Returns: none
+    if (lua_gettop(L) < 2 || !lua_isnumber(L, 1) || !lua_isboolean(L, 2)) {
+        return 0;
+    }
+    float time = static_cast<float>(lua_tonumber(L, 1));
+    bool always_glide = lua_toboolean(L, 2);
+
+    // Get the template voice pointer from registry
+    lua_pushstring(L, "__template_voice");
+    lua_gettable(L, LUA_REGISTRYINDEX);
+    void* voice_ptr = lua_touserdata(L, -1);
+    lua_pop(L, 1);
+    if (!voice_ptr) {
+        return 0;
+    }
+    Voice* voice = static_cast<Voice*>(voice_ptr);
+    voice->setPortamentoTime(time);
+    voice->setAlwaysGlide(always_glide);
+    return 1;
+}
+
+static int l_add_effect_chain(lua_State* L) {
+    // Add an effect chain to the synthesizer (NOT THE VOICE)
+    // Arguments: n_channels (int), input_buffer_id (int), output_buffer_id (int)
+    // Returns: effect_chain_id (int) or nil on failure
+
+    if (lua_gettop(L) < 3 || !lua_isinteger(L, 1) || !lua_isinteger(L, 2) || !lua_isinteger(L, 3)) {
+        lua_pushnil(L);
+        return 1;
+    }
+
+    size_t n_channels = static_cast<size_t>(lua_tointeger(L, 1));
+    ObjectID input_buffer_id = static_cast<ObjectID>(lua_tointeger(L, 2));
+    ObjectID output_buffer_id = static_cast<ObjectID>(lua_tointeger(L, 3));
+
+    if (n_channels < 1) {
+        n_channels = 1;
+    }
+
+    // Get the Program instance from registry
+    lua_pushstring(L, "__program_instance");
+    lua_gettable(L, LUA_REGISTRYINDEX);
+    void* program_ptr = lua_touserdata(L, -1);
+    lua_pop(L, 1);
+    if (!program_ptr) {
+        lua_pushnil(L);
+        return 1;
+    }
+    Program* program = static_cast<Program*>(program_ptr);
+    Synthesizer* synthesizer = static_cast<Synthesizer*>(program->getParentSynthesizer());
+    EffectChainIndex id = synthesizer->addEffectChain(n_channels, input_buffer_id, output_buffer_id);
+    lua_pushinteger(L, id);
+    return 1;
+}
+
 //==========================================================================
 
-Program::Program(Context* context) : context(context), program_path(""), program_name("") {
+Program::Program(Context* context, void* parent_synthesizer) : context(context), parent_synthesizer(parent_synthesizer), program_path(""), program_name("") {
 
     //Initialize Lua state
     L = luaL_newstate();
@@ -799,22 +953,26 @@ Program::Program(Context* context) : context(context), program_path(""), program
     lua_register(getLuaState(L), "add_sine_osc", l_add_sine_osc);
     lua_register(getLuaState(L), "add_voice_audio_buffer", l_add_voice_audio_buffer);
     lua_register(getLuaState(L), "get_object_type", l_get_object_type);
-    lua_register(getLuaState(L), "config_master_output", l_set_master_output_buffer_channels);
-    lua_register(getLuaState(L), "config_master_output_default", l_set_master_output_buffer_default);
-    lua_register(getLuaState(L), "config_voice_output", l_set_voice_output_buffer_channels);
-    lua_register(getLuaState(L), "config_voice_output_default", l_set_voice_output_buffer_default);
-    lua_register(getLuaState(L), "config_default_io", l_config_default_io);
+    // lua_register(getLuaState(L), "config_master_output", l_set_master_output_buffer_channels);
+    // lua_register(getLuaState(L), "config_master_output_default", l_set_master_output_buffer_default);
+    // lua_register(getLuaState(L), "config_voice_output", l_set_voice_output_buffer_channels);
+    // lua_register(getLuaState(L), "config_voice_output_default", l_set_voice_output_buffer_default);
+    // lua_register(getLuaState(L), "config_default_io", l_config_default_io);
     lua_register(getLuaState(L), "get_connected_audio_buffer_for_oscillator", l_get_connected_audio_buffer_for_oscillator);
     lua_register(getLuaState(L), "assign_oscillator_audio_buffer", l_assign_oscillator_audio_buffer);
-    lua_register(getLuaState(L), "set_voice_output", l_connect_voice_master_audio_buffer_to_source);
+    lua_register(getLuaState(L), "add_voice_output", l_add_voice_audio_buffer_to_master);
     lua_register(getLuaState(L), "add_basic_envelope", l_add_basic_envelope);
     lua_register(getLuaState(L), "add_modulation", l_add_modulation);
     lua_register(getLuaState(L), "set_oscillator_frequency_offset", l_set_oscillator_frequency_offset);
     lua_register(getLuaState(L), "create_sawtooth_waveform", l_create_sawtooth_waveform);
     lua_register(getLuaState(L), "add_waveform_osc", l_add_waveform_osc);
-    lua_register(getLuaState(L), "configure_voice_effects_io", l_configure_voice_effects_io);
-    lua_register(getLuaState(L), "add_voice_effect_filter", l_add_voice_effect_filter);
+    lua_register(getLuaState(L), "add_filter_effect", l_add_effect_filter);
     lua_register(getLuaState(L), "set_voice_rand_detune", l_set_voice_rand_detune);
+    lua_register(getLuaState(L), "add_voice_effect_chain", l_add_voice_effect_chain);
+    lua_register(getLuaState(L), "add_audio_buffer", l_add_audio_buffer);
+    lua_register(getLuaState(L), "add_buffer_to_master", l_add_audio_buffer_to_master);
+    lua_register(getLuaState(L), "set_portamento", l_set_portamento);
+    lua_register(getLuaState(L), "add_effect_chain", l_add_effect_chain);
 
     // Override Lua print function
     lua_pushcfunction(getLuaState(L), l_cpp_print);
@@ -872,9 +1030,30 @@ void Program::throwProgramError(ErrorCode code) {
     ConsoleUtility::logRed(context->log_stream, "[Program Error] " + message);
 }
 
+size_t Program::getNumVoicesDefined(){
+    // Call Lua function get_num_voices() if it exists
+    size_t num_voices = 0;
+    lua_getglobal(getLuaState(L), "get_num_voices");
+    if (lua_isfunction(getLuaState(L), -1)) {
+        if (lua_pcall(getLuaState(L), 0, 1, 0) != LUA_OK) {
+            *context->log_stream << "[Program] Lua error in get_num_voices: " << lua_tostring(getLuaState(L), -1) << std::endl;
+            lua_pop(getLuaState(L), 1); // Pop error message
+        } else {
+            if (lua_isinteger(getLuaState(L), -1)) {
+                num_voices = static_cast<size_t>(lua_tointeger(getLuaState(L), -1));
+            }
+            lua_pop(getLuaState(L), 1); // Pop return value
+        }
+    } else {
+        lua_pop(getLuaState(L), 1); // Pop non-function
+    }
+    return num_voices;
+}
+
 Voice* Program::buildVoice() {
-    Voice* voice = new Voice(context);
+    Voice* voice = new Voice(context, parent_synthesizer);
     setTemplateVoice(voice);
+    context->next_effect_chain_id = 0;
 
     // Call Lua function build_voice() if it exists
     lua_getglobal(getLuaState(L), "build_voice");
@@ -888,6 +1067,15 @@ Voice* Program::buildVoice() {
     }
     voice->connectVoiceEffects();
     return voice;
+}
+
+EffectChain* Program::getEffectChainByIndex(EffectChainIndex index) {
+    if(index < 0){
+        Synthesizer* synthesizer = static_cast<Synthesizer*>(parent_synthesizer);
+        return synthesizer->getEffectChainByIndex(index);
+    }else{
+        return template_voice->getEffectChainByIndex(index);
+    }
 }
 
 } // namespace OrangeSodium

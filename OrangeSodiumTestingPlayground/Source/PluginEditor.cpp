@@ -16,14 +16,12 @@ OrangeSodiumTestingPlaygroundAudioProcessorEditor::OrangeSodiumTestingPlayground
     // Make sure that before the constructor has finished, you've set the
     // editor's size to whatever you need it to be.
 
-    addAndMakeVisible(programEditor);
-    programEditor.setMultiLine(true);
-    programEditor.setReturnKeyStartsNewLine(true);
-    programEditor.setReadOnly(false);
-    programEditor.setScrollbarsShown(true);
-    programEditor.setCaretVisible(true);
-    programEditor.setPopupMenuEnabled(true);
-    programEditor.setTabKeyUsedAsCharacter(true);
+    programEditor = std::make_unique<juce::CodeEditorComponent>(codeDocument, new juce::LuaTokeniser());
+
+    addAndMakeVisible(programEditor.get());
+    programEditor->setTabSize(4, true);
+    //programEditor->setFont(juce::Font("Courier New", 14.f, juce::Font::plain));
+    programEditor->setColour(juce::CodeEditorComponent::backgroundColourId, juce::Colours::white);
     juce::File scriptFile = juce::File("C:/users/seant/Documents/projects/OrangeSodium/examples/basic/script.lua");
     setProgramEditorText(scriptFile.loadFileAsString());
 
@@ -31,7 +29,7 @@ OrangeSodiumTestingPlaygroundAudioProcessorEditor::OrangeSodiumTestingPlayground
     addAndMakeVisible(sendProgramButton);
     sendProgramButton.setButtonText("Update");
     sendProgramButton.onClick = [this] {
-        audioProcessor.updateProgram(programEditor.getText());
+        audioProcessor.updateProgram(codeDocument.getAllContent());
     };
 
     addAndMakeVisible(reloadDebugButton);
@@ -47,7 +45,8 @@ OrangeSodiumTestingPlaygroundAudioProcessorEditor::OrangeSodiumTestingPlayground
     debugEditor.setScrollbarsShown(true);
     debugEditor.setText("foooo");
 
-    setSize (1000, 400);
+    setResizable(true, true);
+    setSize (1000, 600);
 }
 
 OrangeSodiumTestingPlaygroundAudioProcessorEditor::~OrangeSodiumTestingPlaygroundAudioProcessorEditor()
@@ -77,7 +76,7 @@ void OrangeSodiumTestingPlaygroundAudioProcessorEditor::resized()
     int remainingHeight = area.getHeight() - 30 - 20; // subtract middle button height and spacing
     int programHeight = (remainingHeight * 2) / 3;
 
-    programEditor.setBounds(area.removeFromTop(programHeight));
+    programEditor->setBounds(area.removeFromTop(programHeight));
     area.removeFromTop(10); // spacing
 
     // Middle button
@@ -90,5 +89,5 @@ void OrangeSodiumTestingPlaygroundAudioProcessorEditor::resized()
 
 
 void OrangeSodiumTestingPlaygroundAudioProcessorEditor::setProgramEditorText(juce::String& text) {
-    programEditor.setText(text);
+    codeDocument.replaceAllContent(text);
 }

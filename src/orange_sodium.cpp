@@ -3,8 +3,6 @@
 #include "context.h"
 #include <iostream>
 
-#define NUM_VOICES_DEFAULT 8
-
 namespace OrangeSodium{
 
 
@@ -13,7 +11,7 @@ Synthesizer* createSynthesizerFromScript(std::string script_path){
     *context->log_stream << "[orange_sodium.cpp] Created context" << std::endl;
 
 
-    Synthesizer* synth = new Synthesizer(context, NUM_VOICES_DEFAULT);
+    Synthesizer* synth = new Synthesizer(context);
     *context->log_stream << "[orange_sodium.cpp] Created synthesizer" << std::endl;
 
     *context->log_stream << "[orange_sodium.cpp] Loading script: " << script_path << std::endl;
@@ -27,7 +25,7 @@ Synthesizer* createSynthesizerFromString(const std::string& script_data){
     Context* context = new Context();
     *context->log_stream << "[orange_sodium.cpp] Created context" << std::endl;
 
-    Synthesizer* synth = new Synthesizer(context, NUM_VOICES_DEFAULT);
+    Synthesizer* synth = new Synthesizer(context);
     *context->log_stream << "[orange_sodium.cpp] Created synthesizer" << std::endl;
 
     *context->log_stream << "[orange_sodium.cpp] Loading script from string" << std::endl;

@@ -127,6 +127,14 @@ void SignalBuffer::setChannel(size_t channel, size_t length, size_t division, Ob
     channel_lengths[channel] = length;
     channel_divisions[channel] = (division > 0) ? division : 1;
     buffer_ids[channel] = id;
+
+
+
+    // UNTESTED CODE - Might screw up stuff if buffer divisions are used
+    if(division > 1){
+        // Restore buffer divisions
+        setChannelDivision(channel, division);
+    }
 }
 
 void SignalBuffer::assignExistingBuffer(size_t channel, float* data, size_t length, size_t division, ObjectID id) {
@@ -158,6 +166,36 @@ void SignalBuffer::setConstantValue(size_t channel, float value) {
             buffer[channel][i] = value;
         }
     }
+}
+
+void SignalBuffer::setChannelDivision(size_t channel, size_t division) {
+    if (channel >= n_channels || division == 0) {
+        return;
+    }
+
+    // Calculate the base length (length at division 1)
+    size_t base_length = channel_lengths[channel] * channel_divisions[channel];
+
+    // Calculate the new length based on the new division
+    size_t new_length = base_length / division;
+
+    // If the new length is larger than the current buffer, we need to reallocate
+    if (new_length > channel_lengths[channel]) {
+        if (buffer[channel]) {
+            delete[] buffer[channel];
+        }
+        buffer[channel] = new float[new_length];
+        std::memset(buffer[channel], 0, new_length * sizeof(float));
+    }
+    // If new length is smaller or equal, we can reuse the existing buffer
+    // Just zero out the portion we'll be using
+    else if (buffer[channel] && new_length > 0) {
+        std::memset(buffer[channel], 0, new_length * sizeof(float));
+    }
+
+    // Update the division and length
+    channel_divisions[channel] = division;
+    channel_lengths[channel] = new_length;
 }
 
 void SignalBuffer::resize(size_t n_channels, size_t n_frames) {

@@ -16,13 +16,17 @@ ZDFFilter::ZDFFilter(Context* context, ObjectID id, size_t n_channels)
     ic2eq = new float[n_channels];
     ic3eq = new float[n_channels];
     ic4eq = new float[n_channels];
+    g_smooth = new float[n_channels];
 
     for (size_t c = 0; c < n_channels; ++c) {
         ic1eq[c] = 0.0f;
         ic2eq[c] = 0.0f;
         ic3eq[c] = 0.0f;
         ic4eq[c] = 0.0f;
+        g_smooth[c] = 0.0f;
     }
+    
+    g_smooth_coeff = 1.f / sample_rate;
 
     // Initialize filter parameters
     param_cutoff = 1000.0f;  // Default cutoff frequency in Hz
@@ -53,16 +57,30 @@ void ZDFFilter::processBlock(SignalBuffer* audio_inputs, SignalBuffer* mod_input
             continue;
         }
 
+        size_t last_cutoff_index = -1;
+        float g = 0.0f;
+        float cutoff_hz;
         for (size_t i = 0; i < n_frames; ++i) {
             // Get modulated parameters
             
-            float cutoff_mod = (cutoff_buffer) ? cutoff_buffer[i / cutoff_divisions] : 0.5f;
-            // Scale cutoff_mod to match exponential frequency response
-            float param_cutoff_knob_val = frequencyToKnobValue(param_cutoff);
-            cutoff_mod = knobValueToFrequency(param_cutoff_knob_val + cutoff_mod) / max_frequency;
+            if(cutoff_divisions == 1 || i / cutoff_divisions != last_cutoff_index) {
+                // Cutoff: map [0, 1] to frequency in Hz
+                const float cutoff_mod = (cutoff_buffer) ? cutoff_buffer[i / cutoff_divisions] : 0.f;
+                const float param_cutoff_knob_value = frequencyToKnobValue(param_cutoff);
+                const float cutoff_knob = std::clamp(cutoff_mod + param_cutoff_knob_value, 0.0f, 1.0f);
+                cutoff_hz = knobValueToFrequency(cutoff_knob);
+                g = std::tan(static_cast<float>(M_PI) * std::clamp(cutoff_hz / sample_rate, 0.0f, 0.499f));
+                last_cutoff_index = i / cutoff_divisions;
+                
+                // If this is the first frame, also set the smoothed g value.
+                // This is to prevent large jumps in the beginning that can mess up transients.
+                if(i == 0) {
+                    g_smooth[c] = g;
+                }
+            }
 
-
-            const float cutoff_hz = cutoff_mod * (max_frequency);
+            g = g_smooth[c] + g_smooth_coeff * (g - g_smooth[c]);
+            g_smooth[c] = g;
 
             // Resonance: map [0, 1] to resonance coefficient
             const float resonance_mod = (resonance_buffer) ? resonance_buffer[i / resonance_divisions] : 0.f;
@@ -70,9 +88,9 @@ void ZDFFilter::processBlock(SignalBuffer* audio_inputs, SignalBuffer* mod_input
 
             // Compute ZDF SVF coefficients
             // g = tan(pi * fc / fs)
-            const float g = std::tan(static_cast<float>(M_PI) * std::clamp(cutoff_hz / sample_rate, 0.0f, 0.499f));
-
-            const float k = 0.4f;
+            const float kmax = 4.f * (1.f - 1.5f * g + 0.5 * g * g);
+            const float k = resonance * kmax;
+            //const float k = 0.4f;
 
             // ZDF SVF processing (Topology-Preserving Transform)
             const float input_signal = in_buffer[i] - k * ic4eq[c];
@@ -96,6 +114,7 @@ void ZDFFilter::processBlock(SignalBuffer* audio_inputs, SignalBuffer* mod_input
 
 void ZDFFilter::onSampleRateChange(float new_sample_rate) {
     sample_rate = new_sample_rate;
+    g_smooth_coeff = 1.f / sample_rate * 500.f;
 }
 
 void ZDFFilter::setFilterType(EFilterType type) {

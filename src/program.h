@@ -10,7 +10,7 @@ namespace OrangeSodium{
 
 class Program{
 public:
-    Program(Context* context);
+    Program(Context* context, void* parent_synthesizer);
     ~Program();
 
     bool loadFromFile(const std::string& path);
@@ -21,21 +21,22 @@ public:
     void setTemplateVoice(Voice* voice);
     Voice* getTemplateVoice() const { return template_voice; }
     bool execute();
-    void setMasterOutputBufferInfoCallback(std::function<void(size_t)> callback) {
-        master_output_buffer_callback = callback;
-    }
-
-    std::function<void(size_t)>& getMasterOutputBufferCallback() {
-        return master_output_buffer_callback;
-    }
 
     void throwProgramError(ErrorCode code);
 
     Voice* buildVoice();
 
+    size_t getNumVoicesDefined();
+
     std::ostream* getLogStream() const {
         return context->log_stream;
     }
+
+    void* getParentSynthesizer() const {
+        return parent_synthesizer;
+    }
+
+    EffectChain* getEffectChainByIndex(EffectChainIndex index);
 
 private:
     std::string program_path;
@@ -44,8 +45,7 @@ private:
     std::string program_data;
     void* L = nullptr; //Lua state
     Voice* template_voice = nullptr; //Template voice built by program
-
-    std::function<void(size_t)> master_output_buffer_callback; // Callback to set master output buffer info; void(size_t n_channels)
+    void* parent_synthesizer = nullptr; //Pointer to parent synthesizer
 };
 
 }

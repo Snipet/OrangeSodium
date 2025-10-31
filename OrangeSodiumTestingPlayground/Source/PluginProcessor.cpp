@@ -143,6 +143,19 @@ bool OrangeSodiumTestingPlaygroundAudioProcessor::isBusesLayoutSupported (const 
 }
 #endif
 
+void OrangeSodiumTestingPlaygroundAudioProcessor::handleMidiMessage(juce::MidiMessage msg) {
+    if (msg.isNoteOn())
+    {
+        if (synth)
+            synth->processMidiEvent(msg.getNoteNumber(), true);
+    }
+    else if (msg.isNoteOff())
+    {
+        if (synth)
+            synth->processMidiEvent(msg.getNoteNumber(), false);
+    }
+}
+
 void OrangeSodiumTestingPlaygroundAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::MidiBuffer& midiMessages)
 {
     juce::ScopedNoDenormals noDenormals;
@@ -162,39 +175,55 @@ void OrangeSodiumTestingPlaygroundAudioProcessor::processBlock (juce::AudioBuffe
     for (auto i = totalNumInputChannels; i < totalNumOutputChannels; ++i)
         buffer.clear (i, 0, buffer.getNumSamples());
 
+    const auto nCh = static_cast<size_t>(buffer.getNumChannels());
+    const auto nSmps = static_cast<size_t>(buffer.getNumSamples());
+    //synth->prepare(nCh, nSmps);
+
+    // Provide channel pointers directly to the synth
+    float* outs[64] = { nullptr }; // support up to 64 channels for safety
+    for (int c = 0; c < buffer.getNumChannels() && c < 64; ++c)
+        outs[c] = buffer.getWritePointer(c);
+
+    // Zero the buffer before rendering (synth writes fresh data)
+    buffer.clear();
+
 
     // Handle MIDI
+    int currentSample = 0;
+    int lastProcessSample = 0;
+    int numSamples = buffer.getNumSamples();
     for (const auto metadata : midiMessages)
     {
         const auto& msg = metadata.getMessage();
-        if (msg.isNoteOn())
-        {
-            if (synth)
-                synth->processMidiEvent(msg.getNoteNumber(), true);
+        int samplePosition = metadata.samplePosition;
+        if (samplePosition > currentSample) {
+            // Process audio up to this MIDI event
+            synth->processBlock(outs, static_cast<size_t>(buffer.getNumChannels()), samplePosition - currentSample, currentSample);
+            //lastProcessSample = samplePosition;
+            currentSample = samplePosition;
         }
-        else if (msg.isNoteOff())
-        {
-            if (synth)
-                synth->processMidiEvent(msg.getNoteNumber(), false);
-        }
+        handleMidiMessage(msg);
     }
 
-    // Prepare for dynamic changes in buffer size/channels
-    if (synth)
-    {
-        const auto nCh = static_cast<size_t>(buffer.getNumChannels());
-        const auto nSmps = static_cast<size_t>(buffer.getNumSamples());
-        //synth->prepare(nCh, nSmps);
-
-        // Provide channel pointers directly to the synth
-        float* outs[64] = { nullptr }; // support up to 64 channels for safety
-        for (int c = 0; c < buffer.getNumChannels() && c < 64; ++c)
-            outs[c] = buffer.getWritePointer(c);
-
-        // Zero the buffer before rendering (synth writes fresh data)
-        buffer.clear();
-        synth->processBlock(outs, static_cast<size_t>(buffer.getNumChannels()), static_cast<size_t>(buffer.getNumSamples()));
+    if (currentSample < numSamples) {
+        synth->processBlock(outs, static_cast<size_t>(buffer.getNumChannels()), numSamples - currentSample, currentSample);
     }
+
+    //if (synth)
+    //{
+    //    const auto nCh = static_cast<size_t>(buffer.getNumChannels());
+    //    const auto nSmps = static_cast<size_t>(buffer.getNumSamples());
+    //    //synth->prepare(nCh, nSmps);
+
+    //    // Provide channel pointers directly to the synth
+    //    float* outs[64] = { nullptr }; // support up to 64 channels for safety
+    //    for (int c = 0; c < buffer.getNumChannels() && c < 64; ++c)
+    //        outs[c] = buffer.getWritePointer(c);
+
+    //    // Zero the buffer before rendering (synth writes fresh data)
+    //    buffer.clear();
+    //    synth->processBlock(outs, static_cast<size_t>(buffer.getNumChannels()), static_cast<size_t>(buffer.getNumSamples()));
+    //}
 }
 
 //==============================================================================
@@ -301,6 +330,7 @@ void OrangeSodiumTestingPlaygroundAudioProcessor::updateProgram(juce::String& pr
     swap_synth->setLogStream(&logStream);
     swap_synth->buildSynthFromProgram();
     synthsNeedSwapped = true;
+    logStream.str(""); // Reset log stream
 }
 
 void OrangeSodiumTestingPlaygroundAudioProcessor::getLogText(juce::String& text) {

@@ -24,6 +24,9 @@ private:
     float* ic3eq;  // Integrator 3 state [channel]
     float* ic4eq;  // Integrator 4 state [channel]
 
+    float* g_smooth; // Smoothed g values per channel
+    float g_smooth_coeff;
+
     EFilterType filter_type;
 };
 

@@ -52,10 +52,10 @@ typedef __m128 os_simd_t;
 #define OS_SIMD_MIN(x, y) _mm_min_ps(x, y)
 #define OS_SIMD_MAX(x, y) _mm_max_ps(x, y)
 #define OS_SIMD_BLEND(mask, a, b) _mm_blendv_ps(a, b, mask)
-#define OS_SIMD_CMPGT(x, y) _mm_cmpgt_ps(x, y
+#define OS_SIMD_CMPGT(x, y) _mm_cmpgt_ps(x, y)
 #define OS_SIMD_CMPLT(x, y) _mm_cmplt_ps(x, y)
 #define OS_SIMD_CMPGE(x, y) _mm_cmpge_ps(x, y)
-#define OS_SIMD_CMPLE(x, y) _mm_cmple_ps(x, y
+#define OS_SIMD_CMPLE(x, y) _mm_cmple_ps(x, y)
 #define OS_SIMD_CMPNEQ(x, y) _mm_cmpneq_ps(x, y)
 #define OS_SIMD_CMPEQ(x, y) _mm_cmpeq_ps(x, y)
 #define OS_SIMD_HADD(x) _mm_hadd_ps(x, x)

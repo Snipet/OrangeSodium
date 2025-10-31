@@ -60,6 +60,7 @@ public:
 
     void updateProgram(juce::String& program);
     void getLogText(juce::String&);
+    void handleMidiMessage(juce::MidiMessage msg);
 
 private:
     // Synth integration

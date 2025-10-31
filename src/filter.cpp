@@ -10,7 +10,7 @@ Filter::Filter(Context* context, ObjectID id, size_t n_channels) : m_context(con
 }
 
 Filter::EFilterObjects Filter::getFilterObjectTypeFromString(const std::string type_str) {
-    if (type_str == "ZDF") {
+    if (type_str == "Analog" || type_str == "ZDF") {
         return EFilterObjects::kZDF;
     } 
     // Add more filter types as needed

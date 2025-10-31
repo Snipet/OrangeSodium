@@ -30,7 +30,7 @@ public:
     ObjectID getId() const noexcept { return id; }
     void setId(ObjectID new_id) noexcept { id = new_id; }
     ObjectID getBufferId(size_t channel) noexcept { return (channel < n_channels) ? buffer_ids[channel] : 0; }
-    void setChannelDivision(size_t channel, size_t division) { if (channel < n_channels) channel_divisions[channel] = division; }
+    void setChannelDivision(size_t channel, size_t division);
     void setConstantValue(size_t channel, float value);
 
     //void setChannelFromExistingBuffer(size_t channel, float* data, size_t length, size_t division, ObjectID id);

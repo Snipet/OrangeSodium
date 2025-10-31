@@ -77,7 +77,7 @@ void BasicEnvelope::processBlock(SignalBuffer* mod_inputs, SignalBuffer* outputs
 }
 
 void BasicEnvelope::onSampleRateChange(float new_sample_rate) {
-    sample_rate = new_sample_rate;
+    sample_rate = new_sample_rate / static_cast<float>(output_buffer->getChannelDivision(0));
 }
 
     

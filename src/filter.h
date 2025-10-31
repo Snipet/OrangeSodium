@@ -57,6 +57,8 @@ public:
 
     static EFilterObjects getFilterObjectTypeFromString(const std::string type_str);
 
+    static int getDefaultDivisions() { return 1; }
+
 
 protected:
     Context* m_context; // Pointer to global context

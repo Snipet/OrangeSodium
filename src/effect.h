@@ -10,7 +10,7 @@ namespace OrangeSodium{
 class Effect {
 public:
     enum class EEffectType {
-        kSimpleDistortion = 0,
+        kDistortion = 0,
         kFilter,
     };
 
